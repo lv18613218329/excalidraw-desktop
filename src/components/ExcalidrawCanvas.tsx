@@ -6,9 +6,29 @@ import '@excalidraw/excalidraw/index.css'
 import { useAppStore } from '../stores/appStore'
 import './ExcalidrawCanvas.css'
 
+const UI_OPTIONS = {
+  canvasActions: {
+    changeViewBackgroundColor: true,
+    clearCanvas: true,
+    export: false as const,
+    loadScene: false,
+    saveToActiveFile: false,
+    toggleTheme: true,
+    saveAsImage: false,
+  },
+  tools: {
+    image: true,
+  },
+}
+
 const ExcalidrawCanvas: React.FC = () => {
-  const [excalidrawAPI, setExcalidrawAPI] = useState<ExcalidrawImperativeAPI | null>(null)
+  const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null)
+  const [, forceUpdate] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
+
+  const prevZoomRef = useRef(100)
+  const prevGridRef = useRef(true)
+  const prevSelectedIdsRef = useRef<string>('')
 
   const setElements = useAppStore((s) => s.setElements)
   const setZoom = useAppStore((s) => s.setZoom)
@@ -18,7 +38,8 @@ const ExcalidrawCanvas: React.FC = () => {
   const setIsDirty = useAppStore((s) => s.setIsDirty)
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
-    setExcalidrawAPI(api)
+    excalidrawAPIRef.current = api
+    forceUpdate((n) => n + 1)
   }, [])
 
   const handleChange = useCallback(
@@ -29,27 +50,36 @@ const ExcalidrawCanvas: React.FC = () => {
         const ids = Object.keys(appState.selectedElementIds).filter(
           (id) => appState.selectedElementIds[id]
         )
-        setSelectedElementIds(ids)
+        const idsKey = ids.sort().join(',')
+        if (idsKey !== prevSelectedIdsRef.current) {
+          prevSelectedIdsRef.current = idsKey
+          setSelectedElementIds(ids)
+        }
       }
 
       const zoomPercent = Math.round(appState.zoom.value * 100)
-      setZoom(zoomPercent)
+      if (zoomPercent !== prevZoomRef.current) {
+        prevZoomRef.current = zoomPercent
+        setZoom(zoomPercent)
+      }
 
       const isGridEnabled = appState.gridSize !== null
-      setGridEnabled(isGridEnabled)
-
-      setIsDirty(true)
+      if (isGridEnabled !== prevGridRef.current) {
+        prevGridRef.current = isGridEnabled
+        setGridEnabled(isGridEnabled)
+      }
     },
-    [setElements, setSelectedElementIds, setZoom, setGridEnabled, setIsDirty]
+    [setElements, setSelectedElementIds, setZoom, setGridEnabled]
   )
 
   useEffect(() => {
     const handleFileOpened = (data: { path: string; content: string }) => {
-      if (!excalidrawAPI) return
+      const api = excalidrawAPIRef.current
+      if (!api) return
       try {
         const parsed = JSON.parse(data.content)
         const restored = restore(parsed, null, null)
-        excalidrawAPI.updateScene({
+        api.updateScene({
           elements: restored.elements,
           appState: restored.appState,
         })
@@ -61,8 +91,9 @@ const ExcalidrawCanvas: React.FC = () => {
     }
 
     const handleMenuNew = () => {
-      if (!excalidrawAPI) return
-      excalidrawAPI.resetScene()
+      const api = excalidrawAPIRef.current
+      if (!api) return
+      api.resetScene()
       setCurrentFilePath(null)
       setIsDirty(false)
     }
@@ -75,7 +106,7 @@ const ExcalidrawCanvas: React.FC = () => {
         unsubMenuNew()
       }
     }
-  }, [excalidrawAPI, setCurrentFilePath, setIsDirty])
+  }, [setCurrentFilePath, setIsDirty])
 
   return (
     <div className="excalidraw-canvas-container" ref={containerRef}>
@@ -83,20 +114,7 @@ const ExcalidrawCanvas: React.FC = () => {
         excalidrawAPI={handleAPIReady}
         onChange={handleChange}
         langCode="zh-CN"
-        UIOptions={{
-          canvasActions: {
-            changeViewBackgroundColor: true,
-            clearCanvas: true,
-            export: false,
-            loadScene: false,
-            saveToActiveFile: false,
-            toggleTheme: true,
-            saveAsImage: false,
-          },
-          tools: {
-            image: true,
-          },
-        }}
+        UIOptions={UI_OPTIONS}
         gridModeEnabled={true}
         viewModeEnabled={false}
         zenModeEnabled={false}

@@ -474,3 +474,52 @@
 ---
 
 *文档最后更新：2026-04-22*
+
+---
+
+## 🐛 BUG 记录
+
+### BUG-001：Excalidraw 组件无限渲染循环
+
+- **状态**：✅ 已修复
+- **发现日期**：2026-04-22
+- **修复日期**：2026-04-22
+- **严重程度**：🔴 严重（应用完全无法使用）
+- **影响范围**：ExcalidrawCanvas 组件
+- **错误信息**：`Maximum update depth exceeded. This can happen when a component repeatedly calls setState inside componentWillUpdate or componentDidUpdate.`
+
+**现象描述**：
+应用启动后白屏，控制台报错 Maximum update depth exceeded，Excalidraw 画布无法渲染，所有功能不可用。
+
+**根本原因**：
+Excalidraw 的 `onChange` 回调与 Zustand 状态更新之间形成了渲染死循环：
+
+```
+Excalidraw onChange → handleChange 更新 Zustand → App 重渲染 
+→ ExcalidrawCanvas 重渲染 → Excalidraw 收到新 props → 触发 onChange → 循环
+```
+
+具体有 3 个触发点：
+
+1. **`UIOptions` 每次渲染创建新对象**（主因）：`<Excalidraw UIOptions={{ ... }} />` 中 UIOptions 是内联对象，每次渲染产生新引用，Excalidraw 检测到 prop 变化后重新初始化内部状态，触发 onChange
+2. **`handleChange` 无条件更新 Zustand**：`setSelectedElementIds(ids)` 每次创建新数组引用（即使内容相同），`setZoom`/`setGridEnabled` 即使值不变也调用，导致 App 组件持续重渲染
+3. **`excalidrawAPI` 使用 `useState`**：API ready 时触发 setState 导致额外重渲染，且 useEffect 依赖 `excalidrawAPI` 导致重新订阅事件
+
+**修复方案**：
+
+| 修改项 | 修复方式 |
+|--------|----------|
+| `UIOptions` 内联对象 | 提取为模块级常量 `UI_OPTIONS`，引用永远不变 |
+| `setSelectedElementIds` 无条件调用 | 使用 `useRef` 缓存前值，仅在选中 ID 真正变化时更新 |
+| `setZoom` 无条件调用 | 使用 `useRef` 缓存前值，仅在缩放值变化时更新 |
+| `setGridEnabled` 无条件调用 | 使用 `useRef` 缓存前值，仅在网格状态变化时更新 |
+| `setIsDirty(true)` 冗余调用 | 移除（`setElements` 内部已设置 `isDirty: true`） |
+| `excalidrawAPI` 使用 `useState` | 改用 `useRef` 存储 API，避免 setState 触发重渲染 |
+| `useEffect` 依赖 `excalidrawAPI` | 移除依赖，事件处理器内直接读取 `excalidrawAPIRef.current` |
+
+**涉及文件**：`src/components/ExcalidrawCanvas.tsx`
+
+**经验教训**：
+- 向 Excalidraw 传递的 props 必须保持引用稳定（使用模块常量、useMemo、useCallback）
+- Zustand 状态更新前应检查值是否真正变化，避免不必要重渲染
+- 存储 Excalidraw API 引用应使用 `useRef` 而非 `useState`，避免触发组件重渲染
