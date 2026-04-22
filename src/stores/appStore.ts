@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ExcalidrawElement } from '@excalidraw/excalidraw/types/element/types'
+import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types'
 
 export type Subject = 'math' | 'physics' | 'chemistry'
 

@@ -1,0 +1,42 @@
+.excalidraw-canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #fff;
+}
+
+.excalidraw-canvas-container .excalidraw-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.excalidraw-canvas-container .excalidraw {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.excalidraw-canvas-container .excalidraw .layer-ui__wrapper__footer {
+  display: none !important;
+}
+
+.excalidraw-canvas-container .excalidraw .layer-ui__wrapper__top-right {
+  display: none !important;
+}
+
+.excalidraw-canvas-container .excalidraw .layer-ui__wrapper__canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.excalidraw-canvas-container .excalidraw .layer-ui__wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.excalidraw-canvas-container .excalidraw .layer-ui__wrapper__inner {
+  pointer-events: none;
+}
+
+.excalidraw-canvas-container .excalidraw .layer-ui__wrapper__inner > .Island {
+  pointer-events: auto;
+}

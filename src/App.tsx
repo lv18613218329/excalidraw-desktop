@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import ExcalidrawCanvas from './components/ExcalidrawCanvas'
+import { useAppStore } from './stores/appStore'
 import './App.css'
 
 export type SubjectType = 'math' | 'physics' | 'chemistry'
@@ -7,12 +9,15 @@ export type ToolType = 'select' | 'pencil' | 'rectangle' | 'ellipse' | 'line' | 
 function App() {
   const [currentTool, setCurrentTool] = useState<ToolType>('select')
   const [currentSubject, setCurrentSubject] = useState<SubjectType>('math')
-  const [zoom, setZoom] = useState(100)
-  const [gridEnabled, setGridEnabled] = useState(true)
-  const [rulerEnabled, setRulerEnabled] = useState(false)
   const [showExportMenu, setShowExportMenu] = useState(false)
-  const [canvasSize] = useState({ width: 1920, height: 1080 })
   const [isMaximized, setIsMaximized] = useState(false)
+
+  const zoom = useAppStore((s) => s.zoom)
+  const gridEnabled = useAppStore((s) => s.gridEnabled)
+  const rulerEnabled = useAppStore((s) => s.rulerEnabled)
+  const currentFilePath = useAppStore((s) => s.currentFilePath)
+  const isDirty = useAppStore((s) => s.isDirty)
+  const selectedElementIds = useAppStore((s) => s.selectedElementIds)
 
   useEffect(() => {
     if (!window.electronAPI) return
@@ -35,7 +40,6 @@ function App() {
     await window.electronAPI?.windowClose()
   }
 
-  // 基础工具列表
   const basicTools: { id: ToolType; name: string; icon: string }[] = [
     { id: 'select', name: '选择', icon: '↖' },
     { id: 'pencil', name: '画笔', icon: '✏️' },
@@ -49,7 +53,6 @@ function App() {
     { id: 'image', name: '图片', icon: '🖼️' },
   ]
 
-  // 学科工具配置
   const subjectTools: Record<SubjectType, { name: string; icon: string; tools: { name: string; icon: string }[] }> = {
     math: {
       name: '数学',
@@ -89,7 +92,6 @@ function App() {
     }
   }
 
-  // 学科主题色
   const subjectColors: Record<SubjectType, string> = {
     math: '#4a90d9',
     physics: '#00acc1',
@@ -99,9 +101,12 @@ function App() {
   const currentSubjectData = subjectTools[currentSubject]
   const primaryColor = subjectColors[currentSubject]
 
+  const fileName = currentFilePath
+    ? currentFilePath.split(/[/\\]/).pop()
+    : '未命名'
+
   return (
     <div className={`app-container subject-${currentSubject}`} style={{ '--primary': primaryColor } as any}>
-      {/* 顶部菜单栏 */}
       <div className="menu-bar">
         <div className="menu-items">
           <div className="menu-item">文件</div>
@@ -109,6 +114,10 @@ function App() {
           <div className="menu-item">视图</div>
           <div className="menu-item">学科</div>
           <div className="menu-item">帮助</div>
+        </div>
+        <div className="file-info">
+          {fileName}
+          {isDirty && <span className="dirty">*</span>}
         </div>
         <div className="window-controls">
           <button className="win-btn min" title="最小化" onClick={handleMinimize}>─</button>
@@ -119,7 +128,6 @@ function App() {
         </div>
       </div>
 
-      {/* 顶部工具栏 */}
       <div className="toolbar">
         <button className="toolbar-btn">📄 新建</button>
         <button className="toolbar-btn">📂 打开</button>
@@ -144,26 +152,23 @@ function App() {
         <div className="toolbar-dropdown">
           <button className="toolbar-btn">🔍 {zoom}% ▼</button>
           <div className="dropdown-menu">
-            <button onClick={() => setZoom(50)}>50%</button>
-            <button onClick={() => setZoom(75)}>75%</button>
-            <button onClick={() => setZoom(100)}>100%</button>
-            <button onClick={() => setZoom(150)}>150%</button>
-            <button onClick={() => setZoom(200)}>200%</button>
+            <button>50%</button>
+            <button>75%</button>
+            <button>100%</button>
+            <button>150%</button>
+            <button>200%</button>
           </div>
         </div>
-        <button className={`toolbar-btn ${gridEnabled ? 'active' : ''}`} onClick={() => setGridEnabled(!gridEnabled)}>
+        <button className={`toolbar-btn ${gridEnabled ? 'active' : ''}`}>
           ☑ 网格
         </button>
-        <button className={`toolbar-btn ${rulerEnabled ? 'active' : ''}`} onClick={() => setRulerEnabled(!rulerEnabled)}>
+        <button className={`toolbar-btn ${rulerEnabled ? 'active' : ''}`}>
           ☑ 标尺
         </button>
       </div>
 
-      {/* 主内容区 */}
       <div className="main-content">
-        {/* 左侧工具面板 */}
         <div className="left-panel">
-          {/* 基础工具 */}
           <div className="panel-section">
             <div className="panel-header">基础工具</div>
             <div className="tool-grid">
@@ -180,7 +185,6 @@ function App() {
             </div>
           </div>
 
-          {/* 学科工具面板 */}
           <div className="panel-section">
             <div className="panel-header">
               <span>学科工具</span>
@@ -211,24 +215,18 @@ function App() {
           </div>
         </div>
 
-        {/* 主画布区域 */}
-        <div className={`canvas-area ${gridEnabled ? 'grid-enabled' : ''} ${rulerEnabled ? 'ruler-enabled' : ''}`}>
-          <div className="canvas-placeholder">
-            <div className="placeholder-content">
-              <div className="placeholder-icon">🎨</div>
-              <div className="placeholder-text">Excalidraw 教学版</div>
-              <div className="placeholder-hint">点击左侧工具开始绘制</div>
-            </div>
-          </div>
-        </div>
+        <ExcalidrawCanvas />
 
-        {/* 右侧属性面板 */}
         <div className="right-panel">
           <div className="panel-header" style={{ marginBottom: '16px' }}>属性设置</div>
 
           <div className="property-group">
             <div className="property-label">提示</div>
-            <p className="hint-text">在画布上选择一个图形查看属性</p>
+            <p className="hint-text">
+              {selectedElementIds.length > 0
+                ? `已选中 ${selectedElementIds.length} 个元素`
+                : '在画布上选择一个图形查看属性'}
+            </p>
           </div>
 
           <div className="property-group">
@@ -282,13 +280,10 @@ function App() {
         </div>
       </div>
 
-      {/* 底部状态栏 */}
       <div className="status-bar">
         <span>当前工具: {basicTools.find(t => t.id === currentTool)?.name || '选择'}</span>
         <span className="separator">|</span>
         <span>缩放: {zoom}%</span>
-        <span className="separator">|</span>
-        <span>画布: {canvasSize.width} × {canvasSize.height}</span>
         <span className="separator">|</span>
         <span>网格: {gridEnabled ? '☑' : '☐'}</span>
         <span className="separator">|</span>

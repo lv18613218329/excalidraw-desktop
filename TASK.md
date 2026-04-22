@@ -6,12 +6,12 @@
 
 ---
 
-## � 当前进度总览
+## 📊 当前进度总览
 
 | 阶段 | 描述 | 进度 | 状态 |
 |------|------|------|------|
-| Phase 1 | 基础框架搭建 | 90% | 🔄 收尾 |
-| Phase 2 | Excalidraw 核心集成 | 0% | ⏳ |
+| Phase 1 | 基础框架搭建 | 100% | ✅ 完成 |
+| Phase 2 | Excalidraw 核心集成 | 30% | 🔄 进行中 |
 | Phase 3 | 本地文件功能 | 30% | ⏳ |
 | Phase 4 | UI 与画布联动 | 0% | ⏳ |
 | Phase 5 | 数学学科工具集 | 0% | ⏳ |
@@ -22,7 +22,7 @@
 
 ---
 
-## Phase 1：基础框架搭建（收尾）
+## Phase 1：基础框架搭建 ✅ 已完成
 
 ### T1.1 项目初始化 ✅ 已完成
 - [x] T1.1.1 创建 Electron + Vite + React 项目结构
@@ -33,15 +33,15 @@
 - [x] T1.1.6 创建 electron/preload.ts 预加载脚本
 - [x] T1.1.7 配置 electron-builder 打包参数
 
-### T1.2 窗口管理 🔄 进行中
+### T1.2 窗口管理 ✅ 已完成
 - [x] T1.2.1 实现主窗口创建（1400x900）
 - [x] T1.2.2 配置窗口最小尺寸（800x600）
-- [ ] T1.2.3 主进程添加窗口最小化 IPC 处理器
-- [ ] T1.2.4 主进程添加窗口最大化/还原 IPC 处理器
-- [ ] T1.2.5 主进程添加窗口关闭 IPC 处理器
-- [ ] T1.2.6 preload.ts 暴露窗口控制 API
-- [ ] T1.2.7 前端窗口控制按钮绑定实际功能
-- [ ] T1.2.8 添加窗口最大化状态同步（还原时显示正确图标）
+- [x] T1.2.3 主进程添加窗口最小化 IPC 处理器
+- [x] T1.2.4 主进程添加窗口最大化/还原 IPC 处理器
+- [x] T1.2.5 主进程添加窗口关闭 IPC 处理器
+- [x] T1.2.6 preload.ts 暴露窗口控制 API
+- [x] T1.2.7 前端窗口控制按钮绑定实际功能
+- [x] T1.2.8 添加窗口最大化状态同步（还原时显示正确图标）
 
 ### T1.3 日志系统 ✅ 已完成
 - [x] T1.3.1 集成 electron-log 日志库
@@ -61,21 +61,21 @@
 
 ---
 
-## Phase 2：Excalidraw 核心集成
+## Phase 2：Excalidraw 核心集成 🔄 进行中
 
-### T2.1 Excalidraw 组件封装
-- [ ] T2.1.1 创建 src/components/ExcalidrawCanvas.tsx 组件文件
-- [ ] T2.1.2 导入并初始化 Excalidraw 组件
-- [ ] T2.1.3 配置 Excalidraw 基础属性（UIOptions, zenMode 等）
-- [ ] T2.1.4 隐藏 Excalidraw 默认工具栏（使用自定义工具栏）
-- [ ] T2.1.5 隐藏 Excalidraw 默认属性面板（使用自定义面板）
-- [ ] T2.1.6 配置 Excalidraw 语言为中文
+### T2.1 Excalidraw 组件封装 ✅ 已完成
+- [x] T2.1.1 创建 src/components/ExcalidrawCanvas.tsx 组件文件
+- [x] T2.1.2 导入并初始化 Excalidraw 组件
+- [x] T2.1.3 配置 Excalidraw 基础属性（UIOptions, zenMode 等）
+- [x] T2.1.4 隐藏 Excalidraw 默认工具栏（使用自定义工具栏）
+- [x] T2.1.5 隐藏 Excalidraw 默认属性面板（使用自定义面板）
+- [x] T2.1.6 配置 Excalidraw 语言为中文
 
-### T2.2 Excalidraw 状态管理
-- [ ] T2.2.1 创建 Excalidraw API 引用（useRef）
-- [ ] T2.2.2 实现 elements 状态同步到 Zustand store
-- [ ] T2.2.3 实现 AppState 同步到 Zustand store
-- [ ] T2.2.4 创建获取当前选中元素的方法
+### T2.2 Excalidraw 状态管理 🔄 进行中
+- [x] T2.2.1 创建 Excalidraw API 引用（useRef）
+- [x] T2.2.2 实现 elements 状态同步到 Zustand store
+- [x] T2.2.3 实现 AppState 同步到 Zustand store
+- [x] T2.2.4 创建获取当前选中元素的方法
 - [ ] T2.2.5 创建更新元素属性的方法
 - [ ] T2.2.6 创建清空画布的方法
 

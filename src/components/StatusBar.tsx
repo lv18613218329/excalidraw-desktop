@@ -17,6 +17,8 @@ const toolNames: Record<ToolType, string> = {
   arrow: '箭头',
   polygon: '多边形',
   text: '文本',
+  notes: '笔记',
+  image: '图片',
 }
 
 const StatusBar: React.FC<StatusBarProps> = ({
