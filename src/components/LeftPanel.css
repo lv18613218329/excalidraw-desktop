@@ -1,0 +1,61 @@
+.left-panel {
+  width: 240px;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+/* 学科选择器 */
+.subject-selector {
+  display: flex;
+  background: #fff;
+  margin: 8px;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.subject-tab {
+  flex: 1;
+  padding: 10px 8px;
+  text-align: center;
+  font-size: 12px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border);
+  transition: all 0.15s ease;
+}
+
+.subject-tab:last-child {
+  border-right: none;
+}
+
+.subject-tab:hover {
+  background: #f0f7ff;
+}
+
+.subject-tab.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* 学科面板 */
+.subject-panel {
+  background: #fff;
+}
+
+.subject-panel.physics .panel-header {
+  color: #00acc1;
+}
+
+.subject-panel.chemistry .panel-header {
+  color: #66bb6a;
+}
+
+.subject-panel.math .panel-header {
+  color: #4a90d9;
+}

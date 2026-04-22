@@ -1,0 +1,42 @@
+.canvas-area {
+  flex: 1;
+  background: #fff;
+  position: relative;
+  background-image: 
+    linear-gradient(#f0f0f0 1px, transparent 1px),
+    linear-gradient(90deg, #f0f0f0 1px, transparent 1px);
+  background-size: 20px 20px;
+  overflow: hidden;
+}
+
+.canvas-placeholder {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholder-content {
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.placeholder-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.placeholder-text {
+  font-size: 18px;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.placeholder-hint {
+  font-size: 14px;
+  color: #999;
+}
