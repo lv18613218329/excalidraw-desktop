@@ -77,6 +77,12 @@ export interface ExcalidrawCanvasRef {
    * Automatically adjusts zoom and scroll position to show all content
    */
   fitToScreen: () => void
+
+  /**
+   * Reset zoom to actual size (100%)
+   * Sets zoom back to 1:1 pixel ratio
+   */
+  resetZoom: () => void
 }
 
 const UI_OPTIONS = {
@@ -265,6 +271,20 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
   }, [])
 
   /**
+   * Reset zoom to actual size (100%)
+   * Sets zoom back to 1:1 pixel ratio
+   */
+  const resetZoom = useCallback(() => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot reset zoom.')
+      return
+    }
+
+    api.updateScene({ appState: { zoom: { value: 1.0 as NormalizedZoomValue } } })
+  }, [])
+
+  /**
    * Fit all elements to the visible canvas area
    * Automatically adjusts zoom and scroll position to show all content
    */
@@ -393,7 +413,9 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     setZoom: setZoomValue,
 
     fitToScreen,
-  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen])
+
+    resetZoom,
+  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
     excalidrawAPIRef.current = api

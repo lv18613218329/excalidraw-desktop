@@ -162,6 +162,7 @@ function App() {
             <button onClick={() => canvasRef.current?.setZoom(1.5)}>150%</button>
             <button onClick={() => canvasRef.current?.setZoom(2.0)}>200%</button>
             <button onClick={() => canvasRef.current?.fitToScreen()}>适应画布</button>
+            <button onClick={() => canvasRef.current?.setZoom(1.0)}>实际大小</button>
           </div>
         </div>
         <button className={`toolbar-btn ${gridEnabled ? 'active' : ''}`}>
