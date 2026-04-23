@@ -200,6 +200,11 @@
   transition: width 0.2s ease;
 }
 
+/* 右侧面板折叠按钮 - 默认隐藏 */
+.right-panel-toggle {
+  display: none;
+}
+
 /* 响应式布局：屏幕宽度 ≥ 1440px 时使用默认布局 */
 @media screen and (min-width: 1440px) {
   .left-panel {
@@ -253,6 +258,65 @@
   }
 }
 
+/* 中等屏幕适配（1200-1439px）- 右侧面板可折叠 */
+@media screen and (max-width: 1439px) and (min-width: 1200px) {
+  .left-panel {
+    width: 200px;
+    min-width: 160px;
+  }
+
+  .right-panel {
+    position: absolute;
+    right: 0;
+    top: 88px; /* menu-bar + toolbar height */
+    height: calc(100vh - 116px); /* 88px + status-bar 28px */
+    width: 280px;
+    min-width: 280px;
+    z-index: 100;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .right-panel.expanded {
+    transform: translateX(0);
+  }
+
+  .right-panel-toggle {
+    display: flex;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 48px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    z-index: 99;
+    transition: all 0.2s ease;
+  }
+
+  .right-panel-toggle:hover {
+    background: var(--bg);
+    color: var(--primary);
+  }
+
+  .right-panel.expanded ~ .right-panel-toggle {
+    display: none;
+  }
+
+  .main-content {
+    position: relative;
+  }
+}
+
 /* 小屏幕适配（< 992px）- 隐藏右侧面板 */
 @media screen and (max-width: 991px) {
   .left-panel {
@@ -261,6 +325,10 @@
   }
 
   .right-panel {
+    display: none;
+  }
+
+  .right-panel-toggle {
     display: none;
   }
 }

@@ -11,6 +11,7 @@ function App() {
   const [currentSubject, setCurrentSubject] = useState<SubjectType>('math')
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
+  const [rightPanelExpanded, setRightPanelExpanded] = useState(false)
 
   // Ref for ExcalidrawCanvas to access exposed methods
   // Usage: canvasRef.current?.updateElementProperties({ strokeColor: '#ff0000' })
@@ -228,8 +229,25 @@ function App() {
 
         <ExcalidrawCanvas ref={canvasRef} />
 
-        <div className="right-panel">
-          <div className="panel-header" style={{ marginBottom: '16px' }}>属性设置</div>
+        {/* 右侧面板折叠按钮 - 1200-1439px 时显示 */}
+        <button 
+          className="right-panel-toggle"
+          onClick={() => setRightPanelExpanded(true)}
+          title="展开属性面板"
+        >
+          ◀
+        </button>
+
+        <div className={`right-panel ${rightPanelExpanded ? 'expanded' : ''}`}>
+          <div 
+            className="panel-header" 
+            style={{ marginBottom: '16px', cursor: 'pointer', userSelect: 'none' }}
+            onClick={() => setRightPanelExpanded(false)}
+            title="点击收起面板"
+          >
+            属性设置
+            <span style={{ marginLeft: 'auto', fontSize: '12px' }}>✕</span>
+          </div>
 
           <div className="property-group">
             <div className="property-label">提示</div>
