@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect, forwardRef, useImperativeHandle } from 'react'
 import { Excalidraw, restore, THEME } from '@excalidraw/excalidraw'
-import type { ExcalidrawImperativeAPI, AppState, BinaryFiles } from '@excalidraw/excalidraw/types'
+import type { ExcalidrawImperativeAPI, AppState, BinaryFiles, NormalizedZoomValue } from '@excalidraw/excalidraw/types'
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types'
 import '@excalidraw/excalidraw/index.css'
 import { useAppStore } from '../stores/appStore'
@@ -55,6 +55,16 @@ export interface ExcalidrawCanvasRef {
    * Clear the canvas and reset state
    */
   clearCanvas: () => void
+
+  /**
+   * Zoom in - increase zoom by 25% (max 400%)
+   */
+  zoomIn: () => void
+
+  /**
+   * Zoom out - decrease zoom by 25% (min 25%)
+   */
+  zoomOut: () => void
 }
 
 const UI_OPTIONS = {
@@ -192,6 +202,40 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     setIsDirty(false)
   }, [setCurrentFilePath, setIsDirty])
 
+  /**
+   * Zoom in - increase zoom by 25% (max 400%)
+   */
+  const zoomIn = useCallback(() => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot zoom in.')
+      return
+    }
+
+    const appState = api.getAppState()
+    const currentZoom = appState.zoom.value
+    const newZoom = Math.min(currentZoom * 1.25, 4) as NormalizedZoomValue // Max 400%
+
+    api.updateScene({ appState: { zoom: { value: newZoom } } })
+  }, [])
+
+  /**
+   * Zoom out - decrease zoom by 25% (min 25%)
+   */
+  const zoomOut = useCallback(() => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot zoom out.')
+      return
+    }
+
+    const appState = api.getAppState()
+    const currentZoom = appState.zoom.value
+    const newZoom = Math.max(currentZoom * 0.75, 0.25) as NormalizedZoomValue // Min 25%
+
+    api.updateScene({ appState: { zoom: { value: newZoom } } })
+  }, [])
+
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
     isReady: () => excalidrawAPIRef.current !== null,
@@ -212,7 +256,11 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     },
 
     clearCanvas,
-  }), [updateElementProperties, selectedElementIds, clearCanvas])
+
+    zoomIn,
+
+    zoomOut,
+  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
     excalidrawAPIRef.current = api
