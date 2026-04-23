@@ -165,8 +165,8 @@ function App() {
             <button onClick={() => canvasRef.current?.setZoom(1.0)}>实际大小</button>
           </div>
         </div>
-        <button className={`toolbar-btn ${gridEnabled ? 'active' : ''}`}>
-          ☑ 网格
+        <button className={`toolbar-btn ${gridEnabled ? 'active' : ''}`} onClick={() => canvasRef.current?.toggleGrid()}>
+          {gridEnabled ? '☑' : '☐'} 网格
         </button>
         <button className={`toolbar-btn ${rulerEnabled ? 'active' : ''}`}>
           ☑ 标尺
