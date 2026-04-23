@@ -271,6 +271,17 @@ ipcMain.handle('get-file-stats', async (_event, filePath: string) => {
   }
 })
 
+ipcMain.handle('auto-save', async (_event, { filePath, content }) => {
+  try {
+    await writeFile(filePath, content, 'utf-8')
+    log.info('Auto-save successful:', filePath)
+    return { success: true }
+  } catch (error) {
+    log.error('Auto-save error:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 // App lifecycle
 app.whenReady().then(() => {
   log.info('App ready')
