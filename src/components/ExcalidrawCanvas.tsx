@@ -71,6 +71,12 @@ export interface ExcalidrawCanvasRef {
    * @param value - Zoom value (0.25 = 25% to 4 = 400%)
    */
   setZoom: (value: number) => void
+
+  /**
+   * Fit all elements to the visible canvas area
+   * Automatically adjusts zoom and scroll position to show all content
+   */
+  fitToScreen: () => void
 }
 
 const UI_OPTIONS = {
@@ -258,6 +264,107 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     api.updateScene({ appState: { zoom: { value: clampedValue } } })
   }, [])
 
+  /**
+   * Fit all elements to the visible canvas area
+   * Automatically adjusts zoom and scroll position to show all content
+   */
+  const fitToScreen = useCallback(() => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot fit to screen.')
+      return
+    }
+
+    const elements = api.getSceneElements()
+    if (elements.length === 0) {
+      console.log('No elements to fit.')
+      return
+    }
+
+    // Calculate bounding box of all elements
+    let minX = Infinity
+    let minY = Infinity
+    let maxX = -Infinity
+    let maxY = -Infinity
+
+    for (const element of elements) {
+      const x = element.x
+      const y = element.y
+      const width = element.width
+      const height = element.height
+
+      // Handle rotated elements by considering all corners
+      const angle = element.angle || 0
+      if (angle === 0) {
+        // No rotation, simple case
+        minX = Math.min(minX, x)
+        minY = Math.min(minY, y)
+        maxX = Math.max(maxX, x + width)
+        maxY = Math.max(maxY, y + height)
+      } else {
+        // Rotated element - calculate bounding box of rotated rectangle
+        const cx = x + width / 2
+        const cy = y + height / 2
+        const cos = Math.cos(angle)
+        const sin = Math.sin(angle)
+
+        const corners = [
+          { x: x, y: y },
+          { x: x + width, y: y },
+          { x: x + width, y: y + height },
+          { x: x, y: y + height },
+        ]
+
+        for (const corner of corners) {
+          const rotatedX = cx + (corner.x - cx) * cos - (corner.y - cy) * sin
+          const rotatedY = cy + (corner.x - cx) * sin + (corner.y - cy) * cos
+          minX = Math.min(minX, rotatedX)
+          minY = Math.min(minY, rotatedY)
+          maxX = Math.max(maxX, rotatedX)
+          maxY = Math.max(maxY, rotatedY)
+        }
+      }
+    }
+
+    // Get canvas dimensions from the container
+    const container = containerRef.current
+    if (!container) {
+      console.warn('Container ref not available.')
+      return
+    }
+
+    const canvasWidth = container.clientWidth
+    const canvasHeight = container.clientHeight
+
+    // Calculate content dimensions with padding
+    const padding = 50 // Padding around content
+    const contentWidth = maxX - minX + padding * 2
+    const contentHeight = maxY - minY + padding * 2
+
+    // Calculate zoom to fit content in canvas
+    // Leave some margin around the content
+    const marginFactor = 0.9 // 90% of canvas size
+    const zoomX = (canvasWidth * marginFactor) / contentWidth
+    const zoomY = (canvasHeight * marginFactor) / contentHeight
+    const calculatedZoom = Math.min(zoomX, zoomY)
+
+    // Clamp zoom to valid range and cast to NormalizedZoomValue
+    const newZoom = Math.max(0.1, Math.min(4, calculatedZoom)) as NormalizedZoomValue
+
+    // Calculate center of content
+    const contentCenterX = (minX + maxX) / 2
+    const contentCenterY = (minY + maxY) / 2
+
+    // Update scene with new zoom and scroll position to center content
+    api.updateScene({
+      appState: {
+        zoom: { value: newZoom },
+        scrollX: contentCenterX - canvasWidth / 2 / newZoom,
+        scrollY: contentCenterY - canvasHeight / 2 / newZoom,
+      },
+    })
+  }, [])
+
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
     isReady: () => excalidrawAPIRef.current !== null,
@@ -284,7 +391,9 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     zoomOut,
 
     setZoom: setZoomValue,
-  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue])
+
+    fitToScreen,
+  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
     excalidrawAPIRef.current = api
