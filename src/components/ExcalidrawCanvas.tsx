@@ -50,6 +50,11 @@ export interface ExcalidrawCanvasRef {
    * Get all scene elements
    */
   getSceneElements: () => ExcalidrawElement[]
+
+  /**
+   * Clear the canvas and reset state
+   */
+  clearCanvas: () => void
 }
 
 const UI_OPTIONS = {
@@ -173,6 +178,20 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     })
   }, [selectedElementIds])
 
+  /**
+   * Clear the canvas
+   */
+  const clearCanvas = useCallback(() => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot clear canvas.')
+      return
+    }
+    api.resetScene()
+    setCurrentFilePath(null)
+    setIsDirty(false)
+  }, [setCurrentFilePath, setIsDirty])
+
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
     isReady: () => excalidrawAPIRef.current !== null,
@@ -191,7 +210,9 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
       }
       return api.getSceneElements() as ExcalidrawElement[]
     },
-  }), [updateElementProperties, selectedElementIds])
+
+    clearCanvas,
+  }), [updateElementProperties, selectedElementIds, clearCanvas])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
     excalidrawAPIRef.current = api
