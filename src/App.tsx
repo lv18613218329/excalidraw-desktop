@@ -156,11 +156,11 @@ function App() {
         <div className="toolbar-dropdown">
           <button className="toolbar-btn">🔍 {zoom}% ▼</button>
           <div className="dropdown-menu">
-            <button>50%</button>
-            <button>75%</button>
-            <button>100%</button>
-            <button>150%</button>
-            <button>200%</button>
+            <button onClick={() => canvasRef.current?.setZoom(0.5)}>50%</button>
+            <button onClick={() => canvasRef.current?.setZoom(0.75)}>75%</button>
+            <button onClick={() => canvasRef.current?.setZoom(1.0)}>100%</button>
+            <button onClick={() => canvasRef.current?.setZoom(1.5)}>150%</button>
+            <button onClick={() => canvasRef.current?.setZoom(2.0)}>200%</button>
           </div>
         </div>
         <button className={`toolbar-btn ${gridEnabled ? 'active' : ''}`}>
