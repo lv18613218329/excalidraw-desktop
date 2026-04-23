@@ -116,7 +116,7 @@
 - [x] T3.1.1 实现 save-file IPC 处理器
 - [x] T3.1.2 实现 open-file IPC 处理器
 - [x] T3.1.3 实现 export-file IPC 处理器
-- [ ] T3.1.4 实现 get-file-stats IPC 处理器（获取文件修改时间等）
+- [x] T3.1.4 实现 get-file-stats IPC 处理器（获取文件修改时间等）
 - [ ] T3.1.5 实现 auto-save IPC 处理器（自动保存）
 
 ### T3.2 Preload API（已完成部分）
