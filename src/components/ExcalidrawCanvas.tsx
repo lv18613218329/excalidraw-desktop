@@ -96,6 +96,12 @@ export interface ExcalidrawCanvasRef {
    * @param size - Grid size in pixels (e.g., 10, 20, 30)
    */
   setGridSize: (size: number) => void
+
+  /**
+   * Set canvas background color
+   * @param color - Background color (e.g., '#ffffff' for white, '#1e1e1e' for dark)
+   */
+  setBackgroundColor: (color: string) => void
 }
 
 const UI_OPTIONS = {
@@ -341,6 +347,27 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
   }, [])
 
   /**
+   * Set canvas background color
+   * @param color - Background color (e.g., '#ffffff' for white, '#1e1e1e' for dark)
+   */
+  const setBackgroundColor = useCallback((color: string) => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot set background color.')
+      return
+    }
+
+    // Validate color is a valid hex color string
+    if (!color || typeof color !== 'string') {
+      console.warn('Invalid color value.')
+      return
+    }
+
+    // Set canvas background color
+    api.updateScene({ appState: { viewBackgroundColor: color } })
+  }, [])
+
+  /**
    * Fit all elements to the visible canvas area
    * Automatically adjusts zoom and scroll position to show all content
    */
@@ -475,7 +502,9 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     toggleGrid,
 
     setGridSize,
-  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize])
+
+    setBackgroundColor,
+  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize, setBackgroundColor])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
     excalidrawAPIRef.current = api
