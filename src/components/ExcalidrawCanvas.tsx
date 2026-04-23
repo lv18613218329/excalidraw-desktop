@@ -89,6 +89,13 @@ export interface ExcalidrawCanvasRef {
    * gridSize null = grid hidden, gridSize number = grid visible
    */
   toggleGrid: () => void
+
+  /**
+   * Set grid size
+   * If grid is currently hidden, it will be shown first
+   * @param size - Grid size in pixels (e.g., 10, 20, 30)
+   */
+  setGridSize: (size: number) => void
 }
 
 const UI_OPTIONS = {
@@ -312,6 +319,28 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
   }, [])
 
   /**
+   * Set grid size
+   * If grid is currently hidden, it will be shown first
+   * @param size - Grid size in pixels (e.g., 10, 20, 30)
+   */
+  const setGridSize = useCallback((size: number) => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot set grid size.')
+      return
+    }
+
+    // Validate size is positive
+    if (size <= 0) {
+      console.warn('Grid size must be a positive number.')
+      return
+    }
+
+    // Set grid size - this will automatically show grid if hidden
+    api.updateScene({ appState: { gridSize: size } })
+  }, [])
+
+  /**
    * Fit all elements to the visible canvas area
    * Automatically adjusts zoom and scroll position to show all content
    */
@@ -444,7 +473,9 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     resetZoom,
 
     toggleGrid,
-  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid])
+
+    setGridSize,
+  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
     excalidrawAPIRef.current = api
