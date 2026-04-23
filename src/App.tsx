@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import ExcalidrawCanvas from './components/ExcalidrawCanvas'
+import { useState, useEffect, useRef } from 'react'
+import ExcalidrawCanvas, { ExcalidrawCanvasRef } from './components/ExcalidrawCanvas'
 import { useAppStore } from './stores/appStore'
 import './App.css'
 
@@ -11,6 +11,10 @@ function App() {
   const [currentSubject, setCurrentSubject] = useState<SubjectType>('math')
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
+
+  // Ref for ExcalidrawCanvas to access exposed methods
+  // Usage: canvasRef.current?.updateElementProperties({ strokeColor: '#ff0000' })
+  const canvasRef = useRef<ExcalidrawCanvasRef>(null)
 
   const zoom = useAppStore((s) => s.zoom)
   const gridEnabled = useAppStore((s) => s.gridEnabled)
@@ -215,7 +219,7 @@ function App() {
           </div>
         </div>
 
-        <ExcalidrawCanvas />
+        <ExcalidrawCanvas ref={canvasRef} />
 
         <div className="right-panel">
           <div className="panel-header" style={{ marginBottom: '16px' }}>属性设置</div>
