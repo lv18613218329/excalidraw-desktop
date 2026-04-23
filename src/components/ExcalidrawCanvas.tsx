@@ -102,6 +102,12 @@ export interface ExcalidrawCanvasRef {
    * @param color - Background color (e.g., '#ffffff' for white, '#1e1e1e' for dark)
    */
   setBackgroundColor: (color: string) => void
+
+  /**
+   * Set canvas theme (light/dark)
+   * @param theme - Theme mode ('light' or 'dark')
+   */
+  setTheme: (theme: 'light' | 'dark') => void
 }
 
 const UI_OPTIONS = {
@@ -139,6 +145,8 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
   const setSelectedElementIds = useAppStore((s) => s.setSelectedElementIds)
   const setCurrentFilePath = useAppStore((s) => s.setCurrentFilePath)
   const setIsDirty = useAppStore((s) => s.setIsDirty)
+  const theme = useAppStore((s) => s.theme)
+  const setThemeInStore = useAppStore((s) => s.setTheme)
 
   // Get current selected element IDs from store
   const selectedElementIds = useAppStore((s) => s.selectedElementIds)
@@ -368,6 +376,25 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
   }, [])
 
   /**
+   * Set canvas theme (light/dark)
+   * @param theme - Theme mode ('light' or 'dark')
+   */
+  const setTheme = useCallback((newTheme: 'light' | 'dark') => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot set theme.')
+      return
+    }
+
+    // Update Excalidraw theme
+    const excalidrawTheme = newTheme === 'light' ? THEME.LIGHT : THEME.DARK
+    api.updateScene({ appState: { theme: excalidrawTheme } })
+
+    // Update app store
+    setThemeInStore(newTheme)
+  }, [setThemeInStore])
+
+  /**
    * Fit all elements to the visible canvas area
    * Automatically adjusts zoom and scroll position to show all content
    */
@@ -504,7 +531,9 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     setGridSize,
 
     setBackgroundColor,
-  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize, setBackgroundColor])
+
+    setTheme,
+  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize, setBackgroundColor, setTheme])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
     excalidrawAPIRef.current = api
@@ -587,7 +616,7 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
         gridModeEnabled={true}
         viewModeEnabled={false}
         zenModeEnabled={false}
-        theme={THEME.LIGHT}
+        theme={theme === 'light' ? THEME.LIGHT : THEME.DARK}
         validateEmbeddable={false}
       />
     </div>

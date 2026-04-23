@@ -18,7 +18,8 @@ function App() {
 
   const zoom = useAppStore((s) => s.zoom)
   const gridEnabled = useAppStore((s) => s.gridEnabled)
-  const rulerEnabled = useAppStore((s) => s.rulerEnabled)
+  const theme = useAppStore((s) => s.theme)
+  const setTheme = useAppStore((s) => s.setTheme)
   const currentFilePath = useAppStore((s) => s.currentFilePath)
   const isDirty = useAppStore((s) => s.isDirty)
   const selectedElementIds = useAppStore((s) => s.selectedElementIds)
@@ -168,8 +169,12 @@ function App() {
         <button className={`toolbar-btn ${gridEnabled ? 'active' : ''}`} onClick={() => canvasRef.current?.toggleGrid()}>
           {gridEnabled ? '☑' : '☐'} 网格
         </button>
-        <button className={`toolbar-btn ${rulerEnabled ? 'active' : ''}`} onClick={() => canvasRef.current?.toggleRuler()}>
-          {rulerEnabled ? '☑' : '☐'} 标尺
+        <button className="toolbar-btn" onClick={() => {
+          const newTheme = theme === 'light' ? 'dark' : 'light'
+          setTheme(newTheme)
+          canvasRef.current?.setTheme(newTheme)
+        }}>
+          {theme === 'light' ? '☀️' : '🌙'} {theme === 'light' ? '亮色' : '暗色'}
         </button>
       </div>
 

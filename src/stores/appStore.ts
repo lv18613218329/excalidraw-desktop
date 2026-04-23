@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types'
 
 export type Subject = 'math' | 'physics' | 'chemistry'
+export type ThemeMode = 'light' | 'dark'
 
 export interface AppState {
   // File state
@@ -21,6 +22,9 @@ export interface AppState {
   // Selection state
   selectedElementIds: string[]
   
+  // Theme state
+  theme: ThemeMode
+  
   // Actions
   setCurrentFilePath: (path: string | null) => void
   setIsDirty: (dirty: boolean) => void
@@ -31,6 +35,7 @@ export interface AppState {
   setCurrentSubject: (subject: Subject) => void
   setSubjectPanelCollapsed: (collapsed: boolean) => void
   setSelectedElementIds: (ids: string[]) => void
+  setTheme: (theme: ThemeMode) => void
   reset: () => void
 }
 
@@ -44,6 +49,7 @@ const initialState = {
   currentSubject: 'math' as Subject,
   subjectPanelCollapsed: false,
   selectedElementIds: [],
+  theme: 'light' as ThemeMode,
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -58,5 +64,6 @@ export const useAppStore = create<AppState>((set) => ({
   setCurrentSubject: (subject) => set({ currentSubject: subject }),
   setSubjectPanelCollapsed: (collapsed) => set({ subjectPanelCollapsed: collapsed }),
   setSelectedElementIds: (ids) => set({ selectedElementIds: ids }),
+  setTheme: (theme) => set({ theme }),
   reset: () => set(initialState),
 }))
