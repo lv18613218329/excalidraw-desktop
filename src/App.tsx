@@ -12,6 +12,7 @@ function App() {
   const [showExportMenu, setShowExportMenu] = useState(false)
   const [isMaximized, setIsMaximized] = useState(false)
   const [rightPanelExpanded, setRightPanelExpanded] = useState(false)
+  const [leftPanelExpanded, setLeftPanelExpanded] = useState(true)
 
   // Ref for ExcalidrawCanvas to access exposed methods
   // Usage: canvasRef.current?.updateElementProperties({ strokeColor: '#ff0000' })
@@ -66,7 +67,7 @@ function App() {
       tools: [
         { name: '三角形', icon: '△' }, { name: '正方形', icon: '□' }, { name: '圆形', icon: '⬭' },
         { name: '六边形', icon: '⬡' }, { name: '直尺', icon: '📐' }, { name: '量角器', icon: '📏' },
-        { name: '坐标轴', icon: '＋' }, { name: '点', icon: '⋅' }, { name: '线段', icon: '─' },
+        { name: '坐标轴', icon: '+' }, { name: '点', icon: '⋅' }, { name: '线段', icon: '─' },
         { name: '曲线', icon: '⤵' }, { name: '角', icon: '∠' }, { name: '平行', icon: '≋' },
         { name: '求和', icon: '∑' }, { name: '积分', icon: '∫' }, { name: '无穷', icon: '∞' },
         { name: '根号', icon: '√' }, { name: '圆周率', icon: 'π' },
@@ -89,7 +90,7 @@ function App() {
       icon: '⚗️',
       tools: [
         { name: '六元环', icon: '⬡' }, { name: '苯环', icon: '🍱' }, { name: '单键', icon: '─' },
-        { name: '双键', icon: '＝' }, { name: '三键', icon: '≡' }, { name: '官能团', icon: '⤴' },
+        { name: '双键', icon: '=' }, { name: '三键', icon: '≡' }, { name: '官能团', icon: '⤴' },
         { name: '试管', icon: '🧪' }, { name: '烧瓶', icon: '⚗️' }, { name: '酒精灯', icon: '🔥' },
         { name: '冷凝管', icon: '💧' }, { name: '烧杯', icon: '🫙' }, { name: '量筒', icon: '📊' },
         { name: '液面填充', icon: '💧' }, { name: '原子模型', icon: '⚛' }, { name: '反应箭头', icon: '🔄' },
@@ -180,9 +181,26 @@ function App() {
       </div>
 
       <div className="main-content">
-        <div className="left-panel">
+        {/* 左侧面板折叠按钮 - 1024-1199px 时显示 */}
+        <button
+          className="left-panel-toggle"
+          onClick={() => setLeftPanelExpanded(true)}
+          title="展开工具面板"
+        >
+          ▶
+        </button>
+
+        <div className={`left-panel ${leftPanelExpanded ? '' : 'collapsed'}`}>
           <div className="panel-section">
-            <div className="panel-header">基础工具</div>
+            <div 
+              className="panel-header"
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+              onClick={() => setLeftPanelExpanded(false)}
+              title="点击收起面板"
+            >
+              基础工具
+              <span style={{ marginLeft: 'auto', fontSize: '12px' }}>◀</span>
+            </div>
             <div className="tool-grid">
               {basicTools.map((tool) => (
                 <button
@@ -229,8 +247,8 @@ function App() {
 
         <ExcalidrawCanvas ref={canvasRef} />
 
-        {/* 右侧面板折叠按钮 - 1200-1439px 时显示 */}
-        <button 
+        {/* 右侧面板折叠按钮 - 1024-1439px 时显示 */}
+        <button
           className="right-panel-toggle"
           onClick={() => setRightPanelExpanded(true)}
           title="展开属性面板"
