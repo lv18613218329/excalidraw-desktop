@@ -168,8 +168,8 @@ function App() {
         <button className={`toolbar-btn ${gridEnabled ? 'active' : ''}`} onClick={() => canvasRef.current?.toggleGrid()}>
           {gridEnabled ? '☑' : '☐'} 网格
         </button>
-        <button className={`toolbar-btn ${rulerEnabled ? 'active' : ''}`}>
-          ☑ 标尺
+        <button className={`toolbar-btn ${rulerEnabled ? 'active' : ''}`} onClick={() => canvasRef.current?.toggleRuler()}>
+          {rulerEnabled ? '☑' : '☐'} 标尺
         </button>
       </div>
 
