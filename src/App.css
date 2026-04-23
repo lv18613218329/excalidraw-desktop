@@ -205,6 +205,11 @@
   display: none;
 }
 
+/* 左侧面板折叠按钮 - 默认隐藏 */
+.left-panel-toggle {
+  display: none;
+}
+
 /* 响应式布局：屏幕宽度 ≥ 1440px 时使用默认布局 */
 @media screen and (min-width: 1440px) {
   .left-panel {
@@ -255,6 +260,107 @@
   .right-panel {
     width: 220px;
     min-width: 160px;
+  }
+}
+
+/* 中等屏幕适配（1024-1199px）- 左侧面板可折叠，右侧面板默认折叠 */
+@media screen and (max-width: 1199px) and (min-width: 1024px) {
+  .left-panel {
+    position: absolute;
+    left: 0;
+    top: 88px; /* menu-bar + toolbar height */
+    height: calc(100vh - 116px); /* 88px + status-bar 28px */
+    width: 200px;
+    min-width: 200px;
+    z-index: 100;
+    transform: translateX(0);
+    transition: transform 0.3s ease;
+    box-shadow: 2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .left-panel.collapsed {
+    transform: translateX(-100%);
+  }
+
+  .left-panel-toggle {
+    display: flex;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 48px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-left: none;
+    border-radius: 0 6px 6px 0;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    z-index: 99;
+    transition: all 0.2s ease;
+  }
+
+  .left-panel-toggle:hover {
+    background: var(--bg);
+    color: var(--primary);
+  }
+
+  .left-panel:not(.collapsed) ~ .left-panel-toggle {
+    display: none;
+  }
+
+  .right-panel {
+    position: absolute;
+    right: 0;
+    top: 88px;
+    height: calc(100vh - 116px);
+    width: 240px;
+    min-width: 240px;
+    z-index: 100;
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .right-panel.expanded {
+    transform: translateX(0);
+  }
+
+  .right-panel-toggle {
+    display: flex;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 48px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: var(--text-secondary);
+    z-index: 99;
+    transition: all 0.2s ease;
+  }
+
+  .right-panel-toggle:hover {
+    background: var(--bg);
+    color: var(--primary);
+  }
+
+  .right-panel.expanded ~ .right-panel-toggle {
+    display: none;
+  }
+
+  .main-content {
+    position: relative;
   }
 }
 
@@ -317,11 +423,136 @@
   }
 }
 
-/* 小屏幕适配（< 992px）- 隐藏右侧面板 */
+/* 小屏幕适配（< 1024px）- 工具面板移至顶部，属性面板浮窗显示 */
+@media screen and (max-width: 1023px) {
+  /* 主内容区改为垂直布局 */
+  .main-content {
+    flex-direction: column;
+  }
+
+  /* 左侧工具面板移至顶部 */
+  .left-panel {
+    width: 100%;
+    min-width: 100%;
+    height: auto;
+    max-height: 180px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    flex-direction: row;
+    flex-wrap: wrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    order: -1; /* 确保在画布上方 */
+  }
+
+  /* 工具面板内容横向排列 */
+  .left-panel .panel-section {
+    flex: 0 0 auto;
+    min-width: 160px;
+    border-bottom: none;
+    border-right: 1px solid var(--border);
+  }
+
+  /* 工具网格在顶部时改为单行显示 */
+  .tool-grid {
+    grid-template-columns: repeat(4, auto);
+    gap: 4px;
+    padding: 8px;
+    flex-wrap: nowrap;
+  }
+
+  .tool-btn {
+    height: 40px;
+    min-width: 52px;
+    flex-direction: row;
+    gap: 4px;
+  }
+
+  .tool-btn .icon {
+    font-size: 16px;
+  }
+
+  /* 右侧属性面板改为浮窗形式 */
+  .right-panel {
+    position: fixed;
+    right: 16px;
+    top: 100px;
+    width: 280px;
+    max-width: calc(100vw - 32px);
+    max-height: calc(100vh - 140px);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    z-index: 1000;
+    transform: translateX(calc(100% + 32px));
+    transition: transform 0.3s ease;
+    overflow-y: auto;
+  }
+
+  .right-panel.expanded,
+  .right-panel.visible {
+    transform: translateX(0);
+  }
+
+  /* 浮窗关闭按钮 */
+  .right-panel::before {
+    content: '×';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    border-radius: 50%;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  /* 属性面板切换按钮 */
+  .right-panel-toggle {
+    display: flex;
+    position: fixed;
+    right: 16px;
+    top: 100px;
+    width: 40px;
+    height: 40px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .right-panel-toggle:hover {
+    background: var(--hover);
+    transform: scale(1.05);
+  }
+
+  /* 左侧面板折叠按钮隐藏 */
+  .left-panel-toggle {
+    display: none;
+  }
+
+  /* 画布区域自适应剩余空间 */
+  .main-content > *:not(.left-panel):not(.right-panel) {
+    flex: 1;
+    min-height: 200px;
+  }
+}
+
+/* 更小屏幕适配（< 992px）- 隐藏右侧面板 */
 @media screen and (max-width: 991px) {
   .left-panel {
-    width: 180px;
-    min-width: 120px;
+    max-height: 140px;
   }
 
   .right-panel {
