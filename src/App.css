@@ -179,12 +179,90 @@
 
 /* 左侧工具面板 */
 .left-panel {
-  width: 240px;
+  width: 200px;
+  min-width: 180px;
   background: var(--bg-secondary);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  transition: width 0.2s ease;
+}
+
+/* 右侧属性面板 */
+.right-panel {
+  width: 240px;
+  min-width: 200px;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  padding: 0;
+  overflow-y: auto;
+  transition: width 0.2s ease;
+}
+
+/* 响应式布局：屏幕宽度 ≥ 1440px 时使用默认布局 */
+@media screen and (min-width: 1440px) {
+  .left-panel {
+    width: 240px;
+    min-width: 240px;
+    flex-shrink: 0;
+  }
+
+  .right-panel {
+    width: 280px;
+    min-width: 280px;
+    flex-shrink: 0;
+  }
+
+  .main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* 画布区域自适应填充中间空间 */
+  .main-content > *:not(.left-panel):not(.right-panel) {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* 小屏幕适配（< 1440px）*/
+@media screen and (max-width: 1439px) {
+  .left-panel {
+    width: 200px;
+    min-width: 160px;
+  }
+
+  .right-panel {
+    width: 240px;
+    min-width: 180px;
+  }
+}
+
+/* 中等屏幕适配（< 1200px）*/
+@media screen and (max-width: 1199px) {
+  .left-panel {
+    width: 180px;
+    min-width: 140px;
+  }
+
+  .right-panel {
+    width: 220px;
+    min-width: 160px;
+  }
+}
+
+/* 小屏幕适配（< 992px）- 隐藏右侧面板 */
+@media screen and (max-width: 991px) {
+  .left-panel {
+    width: 180px;
+    min-width: 120px;
+  }
+
+  .right-panel {
+    display: none;
+  }
 }
 
 .panel-section {
@@ -273,14 +351,7 @@
 
 /* 画布区域 - 由 ExcalidrawCanvas 组件管理 */
 
-/* 右侧属性面板 */
-.right-panel {
-  width: 280px;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--border);
-  padding: 0;
-  overflow-y: auto;
-}
+
 
 .right-panel .panel-header {
   position: sticky;
