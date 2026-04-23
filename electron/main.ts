@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
 import { join } from 'path'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, writeFile, stat } from 'fs/promises'
 import log from 'electron-log'
 
 // Configure logging
@@ -254,6 +254,21 @@ ipcMain.handle('window-close', () => {
 
 ipcMain.handle('window-is-maximized', () => {
   return mainWindow?.isMaximized() ?? false
+})
+
+ipcMain.handle('get-file-stats', async (_event, filePath: string) => {
+  try {
+    const stats = await stat(filePath)
+    return {
+      success: true,
+      mtime: stats.mtime.toISOString(),
+      ctime: stats.ctime.toISOString(),
+      size: stats.size
+    }
+  } catch (error) {
+    log.error('Get file stats error:', error)
+    return { success: false, error: String(error) }
+  }
 })
 
 // App lifecycle
