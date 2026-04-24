@@ -1,5 +1,6 @@
 import React from 'react'
 import { ToolType, SubjectType } from '../App'
+import { getShapesByCategory } from '../libraries/math'
 import './LeftPanel.css'
 
 interface LeftPanelProps {
@@ -7,6 +8,7 @@ interface LeftPanelProps {
   setCurrentTool: (tool: ToolType) => void
   currentSubject: SubjectType
   setCurrentSubject: (subject: SubjectType) => void
+  onMathShapeClick?: (shapeId: string) => void
 }
 
 const baseTools: { id: ToolType; name: string; icon: string }[] = [
@@ -25,6 +27,7 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
   setCurrentTool,
   currentSubject,
   setCurrentSubject,
+  onMathShapeClick,
 }) => {
   return (
     <div className="left-panel">
@@ -116,29 +119,46 @@ const LeftPanel: React.FC<LeftPanelProps> = ({
                 <span>{tool.name}</span>
               </button>
             ))}
-            {currentSubject === 'math' && [
-              { name: '三角形', icon: '△' },
-              { name: '正方形', icon: '□' },
-              { name: '圆形', icon: '⬭' },
-              { name: '正六边形', icon: '⬡' },
-              { name: '直尺', icon: '📐' },
-              { name: '量角器', icon: '📏' },
-              { name: '坐标轴', icon: '＋' },
-              { name: '点', icon: '⋅' },
-              { name: '线段', icon: '─' },
-              { name: '曲线', icon: '⤵' },
-              { name: '角', icon: '∠' },
-              { name: '平行标记', icon: '≋' },
-              { name: '求和', icon: '∑' },
-              { name: '积分', icon: '∫' },
-              { name: '根号', icon: '√' },
-              { name: '圆周率', icon: 'π' },
-            ].map((tool, index) => (
-              <button key={index} className="tool-btn">
-                <span className="icon">{tool.icon}</span>
-                <span>{tool.name}</span>
-              </button>
-            ))}
+            {currentSubject === 'math' && (
+              <>
+                {/* Geometry category */}
+                <div className="panel-subheader">几何图形</div>
+                {getShapesByCategory('geometry').map((shape) => (
+                  <button
+                    key={shape.id}
+                    className="tool-btn"
+                    onClick={() => onMathShapeClick?.(shape.id)}
+                  >
+                    <span className="icon">{shape.icon}</span>
+                    <span>{shape.name}</span>
+                  </button>
+                ))}
+                {/* Coordinate category */}
+                <div className="panel-subheader">坐标标记</div>
+                {getShapesByCategory('coordinate').map((shape) => (
+                  <button
+                    key={shape.id}
+                    className="tool-btn"
+                    onClick={() => onMathShapeClick?.(shape.id)}
+                  >
+                    <span className="icon">{shape.icon}</span>
+                    <span>{shape.name}</span>
+                  </button>
+                ))}
+                {/* Formula category */}
+                <div className="panel-subheader">公式符号</div>
+                {getShapesByCategory('formula').map((shape) => (
+                  <button
+                    key={shape.id}
+                    className="tool-btn"
+                    onClick={() => onMathShapeClick?.(shape.id)}
+                  >
+                    <span className="icon">{shape.icon}</span>
+                    <span>{shape.name}</span>
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </div>

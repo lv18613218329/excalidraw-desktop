@@ -27,6 +27,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('menu-export', (_event, format) => callback(format))
     return () => ipcRenderer.removeAllListeners('menu-export')
   },
+  onMenuSubject: (callback: (subject: string) => void) => {
+    ipcRenderer.on('menu-subject', (_event, subject) => callback(subject))
+    return () => ipcRenderer.removeAllListeners('menu-subject')
+  },
   onFileOpened: (callback: (data: { path: string; content: string }) => void) => {
     ipcRenderer.on('file-opened', (_event, data) => callback(data))
     return () => ipcRenderer.removeAllListeners('file-opened')
@@ -54,6 +58,7 @@ declare global {
       onMenuSave: (callback: () => void) => () => void
       onMenuSaveAs: (callback: () => void) => () => void
       onMenuExport: (callback: (format: string) => void) => () => void
+      onMenuSubject: (callback: (subject: string) => void) => () => void
       onFileOpened: (callback: (data: { path: string; content: string }) => void) => () => void
       windowMinimize: () => Promise<void>
       windowMaximize: () => Promise<void>

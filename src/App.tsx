@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import ExcalidrawCanvas, { ExcalidrawCanvasRef } from './components/ExcalidrawCanvas'
 import { useAppStore } from './stores/appStore'
+import { useFileOperations } from './hooks/useFileOperations'
+import { mathShapes, MathShapeCategory, getShapeById } from './libraries/math'
 import './App.css'
 
 export type SubjectType = 'math' | 'physics' | 'chemistry'
@@ -26,6 +28,21 @@ function App() {
   const isDirty = useAppStore((s) => s.isDirty)
   const selectedElementIds = useAppStore((s) => s.selectedElementIds)
 
+  // 获取 Excalidraw API 用于导出功能
+  // 文件操作 Hook - 使用 canvasRef 获取 API
+  const fileOperations = useFileOperations(canvasRef)
+
+  // 监听学科切换菜单事件
+  useEffect(() => {
+    if (!window.electronAPI) return
+    const cleanup = window.electronAPI.onMenuSubject((subject: string) => {
+      if (subject === 'math' || subject === 'physics' || subject === 'chemistry') {
+        setCurrentSubject(subject)
+      }
+    })
+    return cleanup
+  }, [])
+
   useEffect(() => {
     if (!window.electronAPI) return
 
@@ -33,6 +50,34 @@ function App() {
 
     const unsubscribe = window.electronAPI.onWindowMaximizeChanged(setIsMaximized)
     return unsubscribe
+  }, [])
+
+  // 键盘快捷键处理
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 工具切换快捷键
+      if (!e.ctrlKey && !e.altKey && !e.metaKey) {
+        switch (e.key.toLowerCase()) {
+          case 'v': setCurrentTool('select'); break
+          case 'p': setCurrentTool('pencil'); break
+          case 'r': setCurrentTool('rectangle'); break
+          case 'o': setCurrentTool('ellipse'); break
+          case 'l': setCurrentTool('line'); break
+          case 'a': setCurrentTool('arrow'); break
+          case 't': setCurrentTool('text'); break
+        }
+      }
+      // 学科切换快捷键
+      if (e.ctrlKey) {
+        switch (e.key) {
+          case '1': setCurrentSubject('math'); break
+          case '2': setCurrentSubject('physics'); break
+          case '3': setCurrentSubject('chemistry'); break
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   const handleMinimize = async () => {
@@ -60,18 +105,16 @@ function App() {
     { id: 'image', name: '图片', icon: '🖼️' },
   ]
 
-  const subjectTools: Record<SubjectType, { name: string; icon: string; tools: { name: string; icon: string }[] }> = {
+  const subjectTools: Record<SubjectType, { name: string; icon: string; tools: { name: string; icon: string; shapeId?: string; category?: MathShapeCategory }[] }> = {
     math: {
       name: '数学',
       icon: '🎯',
-      tools: [
-        { name: '三角形', icon: '△' }, { name: '正方形', icon: '□' }, { name: '圆形', icon: '⬭' },
-        { name: '六边形', icon: '⬡' }, { name: '直尺', icon: '📐' }, { name: '量角器', icon: '📏' },
-        { name: '坐标轴', icon: '+' }, { name: '点', icon: '⋅' }, { name: '线段', icon: '─' },
-        { name: '曲线', icon: '⤵' }, { name: '角', icon: '∠' }, { name: '平行', icon: '≋' },
-        { name: '求和', icon: '∑' }, { name: '积分', icon: '∫' }, { name: '无穷', icon: '∞' },
-        { name: '根号', icon: '√' }, { name: '圆周率', icon: 'π' },
-      ]
+      tools: mathShapes.map(shape => ({
+        name: shape.name,
+        icon: shape.icon,
+        shapeId: shape.id,
+        category: shape.category,
+      })),
     },
     physics: {
       name: '物理',
@@ -108,6 +151,17 @@ function App() {
   const currentSubjectData = subjectTools[currentSubject]
   const primaryColor = subjectColors[currentSubject]
 
+  // Handler for math shape tool click - switches to the appropriate drawing tool
+  // instead of auto-inserting a shape, allowing users to draw manually
+  const handleMathShapeClick = (shapeId?: string) => {
+    if (!shapeId || currentSubject !== 'math') return
+    const shape = getShapeById(shapeId)
+    if (shape?.toolType) {
+      // Switch to the corresponding drawing tool
+      setCurrentTool(shape.toolType)
+    }
+  }
+
   const fileName = currentFilePath
     ? currentFilePath.split(/[/\\]/).pop()
     : '未命名'
@@ -136,25 +190,25 @@ function App() {
       </div>
 
       <div className="toolbar">
-        <button className="toolbar-btn">📄 新建</button>
-        <button className="toolbar-btn">📂 打开</button>
-        <button className="toolbar-btn">💾 保存</button>
+        <button className="toolbar-btn" onClick={fileOperations.handleNew}>📄 新建</button>
+        <button className="toolbar-btn" onClick={fileOperations.handleOpen}>📂 打开</button>
+        <button className="toolbar-btn" onClick={fileOperations.handleSave}>💾 保存</button>
         <div className="toolbar-dropdown">
           <button className="toolbar-btn" onClick={() => setShowExportMenu(!showExportMenu)}>
             📤 导出 ▼
           </button>
           {showExportMenu && (
             <div className="dropdown-menu">
-              <button>PNG 图片</button>
-              <button>SVG 矢量图</button>
-              <button>PDF 文档</button>
-              <button>剪贴板</button>
+              <button onClick={fileOperations.handleExportPNG}>PNG 图片</button>
+              <button onClick={fileOperations.handleExportSVG}>SVG 矢量图</button>
+              <button onClick={fileOperations.handleExportPDF}>PDF 文档</button>
+              <button onClick={fileOperations.handleCopyToClipboard}>剪贴板</button>
             </div>
           )}
         </div>
         <span className="toolbar-separator">|</span>
-        <button className="toolbar-btn">↩ 撤销</button>
-        <button className="toolbar-btn">↪ 重做</button>
+        <button className="toolbar-btn" onClick={() => canvasRef.current?.undo()}>↩ 撤销</button>
+        <button className="toolbar-btn" onClick={() => canvasRef.current?.redo()}>↪ 重做</button>
         <span className="toolbar-separator">|</span>
         <div className="toolbar-dropdown">
           <button className="toolbar-btn">🔍 {zoom}% ▼</button>
@@ -235,7 +289,11 @@ function App() {
               </div>
               <div className="tool-grid">
                 {currentSubjectData.tools.map((tool, idx) => (
-                  <button key={idx} className="tool-btn subject-tool">
+                  <button
+                    key={idx}
+                    className="tool-btn subject-tool"
+                    onClick={() => handleMathShapeClick(tool.shapeId)}
+                  >
                     <span className="icon">{tool.icon}</span>
                     <span>{tool.name}</span>
                   </button>

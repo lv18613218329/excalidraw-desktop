@@ -27,7 +27,7 @@ const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 function createMenu() {
   const template: Electron.MenuItemConstructorOptions[] = [
     {
-      label: '文件',
+      label: '文件(_F)',
       submenu: [
         {
           label: '新建',
@@ -79,7 +79,7 @@ function createMenu() {
       ]
     },
     {
-      label: '编辑',
+      label: '编辑(_E)',
       submenu: [
         { role: 'undo' },
         { role: 'redo' },
@@ -93,7 +93,7 @@ function createMenu() {
       ]
     },
     {
-      label: '视图',
+      label: '视图(_V)',
       submenu: [
         { role: 'reload' },
         { role: 'forceReload' },
@@ -107,8 +107,51 @@ function createMenu() {
       ]
     },
     {
-      label: '帮助',
+      label: '学科(_S)',
       submenu: [
+        {
+          label: '数学',
+          accelerator: 'CmdOrCtrl+1',
+          click: () => mainWindow?.webContents.send('menu-subject', 'math')
+        },
+        {
+          label: '物理',
+          accelerator: 'CmdOrCtrl+2',
+          click: () => mainWindow?.webContents.send('menu-subject', 'physics')
+        },
+        {
+          label: '化学',
+          accelerator: 'CmdOrCtrl+3',
+          click: () => mainWindow?.webContents.send('menu-subject', 'chemistry')
+        }
+      ]
+    },
+    {
+      label: '帮助(_H)',
+      submenu: [
+        {
+          label: '使用教程',
+          click: () => {
+            dialog.showMessageBox(mainWindow!, {
+              type: 'info',
+              title: '使用教程',
+              message: 'Excalidraw Desktop 使用教程',
+              detail: '1. 使用左侧工具栏选择绘图工具\n2. 在画布上绘制图形\n3. 使用右侧属性面板修改样式\n4. 通过文件菜单保存和导出\n\n快捷键：\nCtrl+N 新建 | Ctrl+O 打开 | Ctrl+S 保存\nCtrl+Z 撤销 | Ctrl+Y 重做\nCtrl+1 数学 | Ctrl+2 物理 | Ctrl+3 化学'
+            })
+          }
+        },
+        {
+          label: '快捷键列表',
+          click: () => {
+            dialog.showMessageBox(mainWindow!, {
+              type: 'info',
+              title: '快捷键列表',
+              message: '快捷键一览',
+              detail: '文件操作：\nCtrl+N 新建\nCtrl+O 打开\nCtrl+S 保存\nCtrl+Shift+S 另存为\n\n编辑操作：\nCtrl+Z 撤销\nCtrl+Y 重做\nDelete 删除选中\nCtrl+A 全选\n\n工具切换：\nV 选择 | P 画笔 | R 矩形\nO 椭圆 | L 直线 | A 箭头\nT 文本\n\n学科切换：\nCtrl+1 数学\nCtrl+2 物理\nCtrl+3 化学\n\n视图：\nCtrl+滚轮 缩放\nSpace+拖拽 移动画布'
+            })
+          }
+        },
+        { type: 'separator' },
         {
           label: '关于',
           click: () => {

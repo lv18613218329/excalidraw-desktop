@@ -4,6 +4,9 @@ import type { ExcalidrawImperativeAPI, AppState, BinaryFiles, NormalizedZoomValu
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types'
 import '@excalidraw/excalidraw/index.css'
 import { useAppStore } from '../stores/appStore'
+import { MathShape, convertMathShapeToElements } from '../libraries'
+import { useConnectionStore, isLineElement, isConnectableElement, getLineEndpoint, findNearestAnchor, shouldDisconnect } from '../connection'
+import AnchorOverlay from '../connection/AnchorOverlay'
 import './ExcalidrawCanvas.css'
 
 /**
@@ -108,6 +111,23 @@ export interface ExcalidrawCanvasRef {
    * @param theme - Theme mode ('light' or 'dark')
    */
   setTheme: (theme: 'light' | 'dark') => void
+
+  /**
+   * Undo last action
+   */
+  undo: () => void
+
+  /**
+   * Redo last undone action
+   */
+  redo: () => void
+
+  /**
+   * Insert a math shape onto the canvas
+   * @param shape - The MathShape to insert
+   * @param position - Optional position {x, y} to insert at. If not provided, inserts at center.
+   */
+  insertMathShape: (shape: MathShape, position?: { x: number; y: number }) => void
 }
 
 const UI_OPTIONS = {
@@ -495,6 +515,98 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     })
   }, [])
 
+  /**
+   * Undo last action
+   */
+  const undo = useCallback(() => {
+    const api = excalidrawAPIRef.current as any
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot undo.')
+      return
+    }
+    api.undo()
+  }, [])
+
+  /**
+   * Redo last undone action
+   */
+  const redo = useCallback(() => {
+    const api = excalidrawAPIRef.current as any
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot redo.')
+      return
+    }
+    api.redo()
+  }, [])
+
+  /**
+   * Insert a math shape onto the canvas
+   * Converts MathShape SVG to Excalidraw elements and adds them to the scene
+   */
+  const insertMathShape = useCallback((shape: MathShape, position?: { x: number; y: number }) => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot insert shape.')
+      return
+    }
+
+    // Convert shape to Excalidraw elements
+    const elements = convertMathShapeToElements(shape)
+
+    // Get current scene elements
+    const currentElements = api.getSceneElements()
+
+    // Calculate insertion position
+    const appState = api.getAppState()
+    const canvasWidth = containerRef.current?.clientWidth || 800
+    const canvasHeight = containerRef.current?.clientHeight || 600
+    const zoom = appState.zoom.value
+    const scrollX = appState.scrollX
+    const scrollY = appState.scrollY
+
+    // If position is provided, use it; otherwise insert at canvas center
+    const centerX = position?.x ?? (canvasWidth / 2 / zoom - scrollX)
+    const centerY = position?.y ?? (canvasHeight / 2 / zoom - scrollY)
+
+    // Offset elements to the insertion position
+    const offsetX = centerX - (shape.defaultWidth || 100) / 2
+    const offsetY = centerY - (shape.defaultHeight || 100) / 2
+
+    const offsetElements = elements.map(el => {
+      // Update element position
+      return {
+        ...el,
+        x: (el.x || 0) + offsetX,
+        y: (el.y || 0) + offsetY,
+        id: `${el.id}-${Date.now()}`, // Generate new ID
+        seed: Math.floor(Math.random() * 100000),
+        version: 1,
+        versionNonce: Math.floor(Math.random() * 100000),
+        updated: Date.now(),
+      } as ExcalidrawElement
+    })
+
+    // Add new elements to the scene
+    api.updateScene({
+      elements: [...currentElements, ...offsetElements],
+    })
+
+    // Select the newly added elements
+    const newElementIds = offsetElements.map(el => el.id)
+    const newSelectedIds: Record<string, true> = {}
+    newElementIds.forEach(id => {
+      newSelectedIds[id] = true
+    })
+
+    api.updateScene({
+      appState: {
+        selectedElementIds: newSelectedIds,
+      },
+    })
+
+    setIsDirty(true)
+  }, [setIsDirty])
+
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
     isReady: () => excalidrawAPIRef.current !== null,
@@ -533,16 +645,121 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     setBackgroundColor,
 
     setTheme,
-  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize, setBackgroundColor, setTheme])
+
+    undo,
+
+    redo,
+
+    insertMathShape,
+  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize, setBackgroundColor, setTheme, undo, redo, insertMathShape])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
     excalidrawAPIRef.current = api
     forceUpdate((n) => n + 1)
   }, [])
 
+  const prevElementsRef = useRef<ExcalidrawElement[]>([])
+
+  const connectionStore = useConnectionStore
+
   const handleChange = useCallback(
     (elements: readonly ExcalidrawElement[], appState: AppState, _files: BinaryFiles) => {
-      setElements(elements as ExcalidrawElement[])
+      const currentElements = elements as ExcalidrawElement[]
+      setElements(currentElements)
+
+      const connStore = connectionStore.getState()
+      const prevElements = prevElementsRef.current
+      const isDragging = (appState as any).draggingElement != null
+      const isResizing = (appState as any).resizingElement != null
+
+      if (!isDragging && !isResizing && prevElements.length > 0) {
+        const elementMap = new Map<string, ExcalidrawElement>()
+        for (const el of currentElements) {
+          elementMap.set(el.id, el)
+        }
+
+        for (const prevEl of prevElements) {
+          const currEl = elementMap.get(prevEl.id)
+          if (!currEl) continue
+
+          const moved =
+            prevEl.x !== currEl.x ||
+            prevEl.y !== currEl.y ||
+            prevEl.width !== currEl.width ||
+            prevEl.height !== currEl.height ||
+            prevEl.angle !== currEl.angle
+
+          if (moved && isConnectableElement(currEl)) {
+            const updatedElements = connStore.handleElementMoved(currEl, currentElements)
+            const api = excalidrawAPIRef.current
+            if (api) {
+              const sceneElements = api.getSceneElements()
+              const sceneMap = new Map<string, ExcalidrawElement>()
+              for (const el of sceneElements) {
+                sceneMap.set(el.id, el)
+              }
+              for (const el of updatedElements) {
+                sceneMap.set(el.id, el)
+              }
+              const needsUpdate = Array.from(sceneMap.values())
+              const currentIds = sceneElements.map((e: ExcalidrawElement) => e.id).sort().join(',')
+              const newIds = needsUpdate.map((e: ExcalidrawElement) => e.id).sort().join(',')
+              if (currentIds !== newIds || sceneElements.length !== needsUpdate.length) {
+                api.updateScene({ elements: needsUpdate })
+              }
+            }
+          }
+
+          if (moved && isLineElement(currEl)) {
+            const startBinding = connStore.getBindingForLineEnd(currEl.id, 'start')
+            const endBinding = connStore.getBindingForLineEnd(currEl.id, 'end')
+
+            if (startBinding && shouldDisconnect(currEl, startBinding, currentElements)) {
+              connStore.removeBinding(currEl.id, 'start')
+            }
+            if (endBinding && shouldDisconnect(currEl, endBinding, currentElements)) {
+              connStore.removeBinding(currEl.id, 'end')
+            }
+          }
+        }
+
+        for (const el of currentElements) {
+          if (isLineElement(el)) {
+            const startBinding = connStore.getBindingForLineEnd(el.id, 'start')
+            const endBinding = connStore.getBindingForLineEnd(el.id, 'end')
+
+            if (!startBinding) {
+              const startPt = getLineEndpoint(el, 'start')
+              const anchor = findNearestAnchor(startPt.x, startPt.y, currentElements, connStore.snapThreshold, [el.id])
+              if (anchor) {
+                connStore.addBinding({
+                  id: '',
+                  lineElementId: el.id,
+                  side: 'start',
+                  targetElementId: anchor.elementId,
+                  anchorPosition: anchor.position,
+                })
+              }
+            }
+
+            if (!endBinding) {
+              const endPt = getLineEndpoint(el, 'end')
+              const anchor = findNearestAnchor(endPt.x, endPt.y, currentElements, connStore.snapThreshold, [el.id])
+              if (anchor) {
+                connStore.addBinding({
+                  id: '',
+                  lineElementId: el.id,
+                  side: 'end',
+                  targetElementId: anchor.elementId,
+                  anchorPosition: anchor.position,
+                })
+              }
+            }
+          }
+        }
+      }
+
+      prevElementsRef.current = currentElements
 
       if (appState.selectedElementIds) {
         const ids = Object.keys(appState.selectedElementIds).filter(
@@ -567,7 +784,7 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
         setGridEnabled(isGridEnabled)
       }
     },
-    [setElements, setSelectedElementIds, setZoom, setGridEnabled]
+    [setElements, setSelectedElementIds, setZoom, setGridEnabled, connectionStore]
   )
 
   useEffect(() => {
@@ -618,6 +835,10 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
         zenModeEnabled={false}
         theme={theme === 'light' ? THEME.LIGHT : THEME.DARK}
         validateEmbeddable={false}
+      />
+      <AnchorOverlay
+        getExcalidrawAPI={() => excalidrawAPIRef.current}
+        containerRef={containerRef}
       />
     </div>
   )

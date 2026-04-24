@@ -59,3 +59,18 @@
 .subject-panel.math .panel-header {
   color: #4a90d9;
 }
+
+/* Category subheaders for math tools */
+.panel-subheader {
+  font-size: 11px;
+  color: var(--text-secondary);
+  padding: 6px 12px 4px;
+  margin-top: 8px;
+  font-weight: 500;
+  border-top: 1px solid var(--border);
+}
+
+.panel-subheader:first-of-type {
+  border-top: none;
+  margin-top: 0;
+}

@@ -31,6 +31,7 @@ interface ElectronAPI {
   onMenuSave: (callback: () => void) => () => void
   onMenuSaveAs: (callback: () => void) => () => void
   onMenuExport: (callback: (format: string) => void) => () => void
+  onMenuSubject: (callback: (subject: string) => void) => () => void
   onFileOpened: (callback: (data: { path: string; content: string }) => void) => () => void
 
   // Window controls
