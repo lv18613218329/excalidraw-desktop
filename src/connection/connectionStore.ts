@@ -49,7 +49,7 @@ export interface ConnectionStoreState extends ConnectionState {
   getVisibleAnchors: (
     allElements: ExcalidrawElement[],
     hoveredElementId: string | null,
-    draggingLineId: string | null
+    lineToolActive: boolean
   ) => ConnectionPoint[]
 }
 
@@ -170,8 +170,8 @@ export const useConnectionStore = create<ConnectionStoreState>((set, get) => ({
     return Array.from(elementMap.values())
   },
 
-  getVisibleAnchors: (allElements, hoveredElementId, draggingLineId) => {
-    const { showAnchors, bindings } = get()
+  getVisibleAnchors: (allElements, hoveredElementId, lineToolActive) => {
+    const { showAnchors } = get()
     if (!showAnchors) return []
 
     const anchors: ConnectionPoint[] = []
@@ -183,16 +183,9 @@ export const useConnectionStore = create<ConnectionStoreState>((set, get) => ({
       }
     }
 
-    if (draggingLineId) {
-      const connectedElementIds = new Set<string>()
-      for (const b of bindings) {
-        if (b.lineElementId === draggingLineId) {
-          connectedElementIds.add(b.targetElementId)
-        }
-      }
-
+    if (lineToolActive) {
       for (const el of allElements) {
-        if (isConnectableElement(el) && connectedElementIds.has(el.id)) {
+        if (isConnectableElement(el)) {
           anchors.push(...getElementAnchorPoints(el))
         }
       }

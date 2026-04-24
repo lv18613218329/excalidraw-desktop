@@ -4,7 +4,6 @@ import {
   ConnectionPoint,
   useConnectionStore,
   isConnectableElement,
-  isLineElement,
 } from '../connection'
 import './AnchorOverlay.css'
 
@@ -15,49 +14,87 @@ interface AnchorOverlayProps {
 
 const ANCHOR_RADIUS = 5
 
+function sceneCoordsToContainerCoords(
+  sceneX: number,
+  sceneY: number,
+  zoom: number,
+  scrollX: number,
+  scrollY: number,
+  offsetLeft: number,
+  offsetTop: number,
+  containerLeft: number,
+  containerTop: number
+): { x: number; y: number } {
+  const viewportX = (sceneX + scrollX) * zoom + offsetLeft
+  const viewportY = (sceneY + scrollY) * zoom + offsetTop
+  return {
+    x: viewportX - containerLeft,
+    y: viewportY - containerTop,
+  }
+}
+
+function isLineToolActive(appState: any): boolean {
+  const toolType = appState.activeTool?.type || appState.activeTool
+  return toolType === 'arrow' || toolType === 'line'
+}
+
 const AnchorOverlay: React.FC<AnchorOverlayProps> = ({
   getExcalidrawAPI,
   containerRef,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [hoveredElementId, setHoveredElementId] = useState<string | null>(null)
-  const [draggingLineId, setDraggingLineId] = useState<string | null>(null)
+  const [lineToolActive, setLineToolActive] = useState(false)
+  const [redrawTick, setRedrawTick] = useState(0)
   const showAnchors = useConnectionStore((s) => s.showAnchors)
-
   const getVisibleAnchors = useConnectionStore((s) => s.getVisibleAnchors)
 
   const drawAnchors = useCallback(
     (anchors: ConnectionPoint[]) => {
-      const canvas = canvasRef.current
+      const overlayCanvas = canvasRef.current
       const container = containerRef.current
-      if (!canvas || !container) return
+      if (!overlayCanvas || !container) return
 
       const api = getExcalidrawAPI()
       if (!api) return
 
-      const ctx = canvas.getContext('2d')
+      const ctx = overlayCanvas.getContext('2d')
       if (!ctx) return
 
-      const rect = container.getBoundingClientRect()
+      const containerRect = container.getBoundingClientRect()
       const dpr = window.devicePixelRatio || 1
 
-      canvas.width = rect.width * dpr
-      canvas.height = rect.height * dpr
-      canvas.style.width = `${rect.width}px`
-      canvas.style.height = `${rect.height}px`
-      ctx.scale(dpr, dpr)
-      ctx.clearRect(0, 0, rect.width, rect.height)
+      overlayCanvas.width = containerRect.width * dpr
+      overlayCanvas.height = containerRect.height * dpr
+      overlayCanvas.style.width = `${containerRect.width}px`
+      overlayCanvas.style.height = `${containerRect.height}px`
+      overlayCanvas.style.left = '0px'
+      overlayCanvas.style.top = '0px'
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, containerRect.width, containerRect.height)
 
       const appState = api.getAppState()
       const zoom = appState.zoom.value
       const scrollX = appState.scrollX
       const scrollY = appState.scrollY
-      const offsetX = appState.offsetLeft || 0
-      const offsetY = appState.offsetTop || 0
+      const offsetLeft = appState.offsetLeft || 0
+      const offsetTop = appState.offsetTop || 0
+
+      const containerLeft = containerRect.left
+      const containerTop = containerRect.top
 
       for (const anchor of anchors) {
-        const screenX = (anchor.x + scrollX) * zoom + offsetX
-        const screenY = (anchor.y + scrollY) * zoom + offsetY
+        const { x: screenX, y: screenY } = sceneCoordsToContainerCoords(
+          anchor.x,
+          anchor.y,
+          zoom,
+          scrollX,
+          scrollY,
+          offsetLeft,
+          offsetTop,
+          containerLeft,
+          containerTop
+        )
 
         ctx.beginPath()
         ctx.arc(screenX, screenY, ANCHOR_RADIUS, 0, Math.PI * 2)
@@ -91,9 +128,9 @@ const AnchorOverlay: React.FC<AnchorOverlayProps> = ({
     if (!api) return
 
     const allElements = api.getSceneElements() as ExcalidrawElement[]
-    const anchors = getVisibleAnchors(allElements, hoveredElementId, draggingLineId)
+    const anchors = getVisibleAnchors(allElements, hoveredElementId, lineToolActive)
     drawAnchors(anchors)
-  }, [showAnchors, hoveredElementId, draggingLineId, getExcalidrawAPI, getVisibleAnchors, drawAnchors])
+  }, [showAnchors, hoveredElementId, lineToolActive, redrawTick, getExcalidrawAPI, getVisibleAnchors, drawAnchors])
 
   useEffect(() => {
     const api = getExcalidrawAPI()
@@ -103,10 +140,9 @@ const AnchorOverlay: React.FC<AnchorOverlayProps> = ({
       const appState = api.getAppState()
       const allElements = api.getSceneElements() as ExcalidrawElement[]
 
-      if (appState.draggingElement && isLineElement(appState.draggingElement as any)) {
-        setDraggingLineId((appState.draggingElement as any).id)
-      } else {
-        setDraggingLineId(null)
+      const active = isLineToolActive(appState)
+      if (active !== lineToolActive) {
+        setLineToolActive(active)
       }
 
       const selectedIds = Object.keys(appState.selectedElementIds || {}).filter(
@@ -138,20 +174,33 @@ const AnchorOverlay: React.FC<AnchorOverlayProps> = ({
       container.addEventListener('pointermove', handlePointerMove)
       return () => container.removeEventListener('pointermove', handlePointerMove)
     }
-  }, [getExcalidrawAPI, containerRef])
+  }, [getExcalidrawAPI, containerRef, lineToolActive])
+
+  useEffect(() => {
+    const api = getExcalidrawAPI()
+    if (!api) return
+
+    const onChange = () => {
+      const appState = api.getAppState()
+      const active = isLineToolActive(appState)
+      setLineToolActive(active)
+      setRedrawTick((t) => t + 1)
+    }
+
+    const unsub = api.onChange(onChange)
+    return () => {
+      if (typeof unsub === 'function') unsub()
+    }
+  }, [getExcalidrawAPI])
 
   useEffect(() => {
     const handleResize = () => {
-      const api = getExcalidrawAPI()
-      if (!api) return
-      const allElements = api.getSceneElements() as ExcalidrawElement[]
-      const anchors = getVisibleAnchors(allElements, hoveredElementId, draggingLineId)
-      drawAnchors(anchors)
+      setRedrawTick((t) => t + 1)
     }
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [hoveredElementId, draggingLineId, getExcalidrawAPI, getVisibleAnchors, drawAnchors])
+  }, [])
 
   return (
     <canvas
