@@ -11,6 +11,18 @@ const MenuBar: React.FC<MenuBarProps> = ({ filePath, isDirty }) => {
     ? filePath.split(/[/\\]/).pop() 
     : '未命名'
 
+  const handleMinimize = () => {
+    window.electronAPI?.windowMinimize()
+  }
+
+  const handleMaximize = () => {
+    window.electronAPI?.windowMaximize()
+  }
+
+  const handleClose = () => {
+    window.electronAPI?.windowClose()
+  }
+
   return (
     <div className="menu-bar">
       <div className="menu-items">
@@ -25,9 +37,9 @@ const MenuBar: React.FC<MenuBarProps> = ({ filePath, isDirty }) => {
         {isDirty && <span className="dirty">*</span>}
       </div>
       <div className="window-controls">
-        <button className="win-btn min" title="最小化">─</button>
-        <button className="win-btn max" title="最大化">□</button>
-        <button className="win-btn close" title="关闭">×</button>
+        <button className="win-btn min" title="最小化" onClick={handleMinimize}>─</button>
+        <button className="win-btn max" title="最大化" onClick={handleMaximize}>□</button>
+        <button className="win-btn close" title="关闭" onClick={handleClose}>×</button>
       </div>
     </div>
   )

@@ -292,7 +292,7 @@ ipcMain.handle('window-maximize', () => {
 })
 
 ipcMain.handle('window-close', () => {
-  mainWindow?.close()
+  app.quit()
 })
 
 ipcMain.handle('window-is-maximized', () => {

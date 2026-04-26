@@ -239,6 +239,7 @@ function createPolygonElement(
     strokeWidth: style.strokeWidth || 2,
     strokeStyle: style.strokeStyle || 'solid',
     opacity: style.opacity ?? 100,
+    lastCommittedPoint: null,
     startBinding: null,
     endBinding: null,
     startArrowhead: null,
@@ -313,7 +314,8 @@ export function splitShapes(
       }
 
       removedIds.add(shape.id)
-      removedIds.add(line.id)
+      // 保留分割线，只删除被分割的图形
+      // removedIds.add(line.id)
       splitCount++
       break
     }
@@ -331,10 +333,13 @@ export function splitShapes(
     .filter((el) => !removedIds.has(el.id))
     .concat(newElements)
 
+  // 计算实际的多边形数量
+  const polygonCount = splitCount * 2
+
   return {
     elements: updatedElements,
     splitCount,
-    message: `已将图形分割为 ${newElements.length} 个子图形`,
+    message: `已将图形分割为 ${polygonCount} 个子图形`,
   }
 }
 
