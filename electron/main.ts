@@ -198,6 +198,14 @@ function createWindow() {
     mainWindow.loadFile(join(__dirname, '../dist/index.html'))
   }
 
+  // 强制关闭窗口
+  mainWindow.on('close', (event) => {
+    console.log('[Main] close 事件触发')
+    log.info('[Main] close event triggered')
+    // 不阻止默认行为，让窗口正常关闭
+    mainWindow?.destroy()
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
   })
@@ -292,6 +300,8 @@ ipcMain.handle('window-maximize', () => {
 })
 
 ipcMain.handle('window-close', () => {
+  console.log('[IPC] window-close 被调用')
+  log.info('[IPC] window-close called, quitting app')
   app.quit()
 })
 
