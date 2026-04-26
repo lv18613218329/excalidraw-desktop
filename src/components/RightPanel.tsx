@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import './RightPanel.css'
 
 interface ElementData {
@@ -8,6 +8,7 @@ interface ElementData {
   y?: number
   width?: number
   height?: number
+  angle?: number
   strokeColor?: string
   backgroundColor?: string
   strokeWidth?: number
@@ -16,6 +17,7 @@ interface ElementData {
 interface RightPanelProps {
   elements?: ElementData[]
   selectedElementIds?: string[]
+  canvasRef?: any
 }
 
 const typeNames: Record<string, string> = {
@@ -29,14 +31,32 @@ const typeNames: Record<string, string> = {
   image: '图片',
 }
 
-const RightPanel: React.FC<RightPanelProps> = ({ elements = [], selectedElementIds = [] }) => {
+const RightPanel: React.FC<RightPanelProps> = ({ elements = [], selectedElementIds = [], canvasRef }) => {
   const [fillColor, setFillColor] = useState('#4a90d9')
   const [fillOpacity, setFillOpacity] = useState(100)
   const [strokeColor, setStrokeColor] = useState('#333333')
   const [strokeWidth, setStrokeWidth] = useState(2)
   const [rotation, setRotation] = useState(0)
+  const [isUserDragging, setIsUserDragging] = useState(false)
 
   const selectedElement = elements.find(el => selectedElementIds?.includes(el.id))
+
+  // Sync rotation slider with selected element's actual angle
+  useEffect(() => {
+    if (selectedElement && !isUserDragging) {
+      const angleDeg = selectedElement.angle ? (selectedElement.angle * 180) / Math.PI : 0
+      const normalizedDeg = ((angleDeg % 360) + 360) % 360
+      setRotation(Math.round(normalizedDeg))
+    }
+  }, [selectedElement, isUserDragging])
+
+  // Handle rotation change
+  const handleRotationChange = (newAngle: number) => {
+    setRotation(newAngle)
+    if (canvasRef?.current?.setRotation) {
+      canvasRef.current.setRotation(newAngle)
+    }
+  }
 
   return (
     <div className="right-panel">
@@ -139,9 +159,35 @@ const RightPanel: React.FC<RightPanelProps> = ({ elements = [], selectedElementI
             min="0" 
             max="360" 
             value={rotation}
-            onChange={(e) => setRotation(Number(e.target.value))}
+            onChange={(e) => handleRotationChange(Number(e.target.value))}
+            onMouseDown={() => setIsUserDragging(true)}
+            onMouseUp={() => setIsUserDragging(false)}
+            onMouseLeave={() => setIsUserDragging(false)}
           />
           <span className="slider-value">{rotation}°</span>
+        </div>
+        <div className="property-row" style={{ marginTop: '8px' }}>
+          <button 
+            className="quick-rotate-btn"
+            onClick={() => canvasRef?.current?.rotateElements(-90)}
+            title="逆时针旋转 90°"
+          >
+            ↺ -90°
+          </button>
+          <button 
+            className="quick-rotate-btn"
+            onClick={() => canvasRef?.current?.rotateElements(90)}
+            title="顺时针旋转 90°"
+          >
+            ↻ +90°
+          </button>
+          <button 
+            className="quick-rotate-btn"
+            onClick={() => canvasRef?.current?.setRotation(0)}
+            title="重置旋转"
+          >
+            ⊟ 重置
+          </button>
         </div>
       </div>
 

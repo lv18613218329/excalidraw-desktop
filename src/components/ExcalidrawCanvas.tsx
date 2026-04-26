@@ -6,7 +6,9 @@ import '@excalidraw/excalidraw/index.css'
 import { useAppStore } from '../stores/appStore'
 import { MathShape, convertMathShapeToElements } from '../libraries'
 import { useConnectionStore, isLineElement, isConnectableElement, getLineEndpoint, findNearestAnchor, shouldDisconnect } from '../connection'
+import { splitShapes, canSplitSelection } from '../split'
 import AnchorOverlay from '../connection/AnchorOverlay'
+import RotationCenterOverlay from './RotationCenterOverlay'
 import './ExcalidrawCanvas.css'
 
 /**
@@ -128,6 +130,32 @@ export interface ExcalidrawCanvasRef {
    * @param position - Optional position {x, y} to insert at. If not provided, inserts at center.
    */
   insertMathShape: (shape: MathShape, position?: { x: number; y: number }) => void
+
+  /**
+   * Split selected shape by a crossing line into sub-shapes
+   * Select a shape (rectangle/diamond) + a line that crosses it, then split
+   * @returns The split count and optional message
+   */
+  splitSelectedGroup: () => { count: number; message?: string }
+
+  /**
+   * Check if the current selection can be split (contains grouped elements)
+   */
+  canSplitSelection: () => boolean
+
+  /**
+   * Rotate selected elements by a specified angle
+   * @param angle - Rotation angle in degrees (positive = clockwise, negative = counter-clockwise)
+   * @param centerX - Optional center X coordinate for rotation (default: element center)
+   * @param centerY - Optional center Y coordinate for rotation (default: element center)
+   */
+  rotateElements: (angle: number, centerX?: number, centerY?: number) => void
+
+  /**
+   * Set absolute rotation angle for selected elements
+   * @param angle - Absolute rotation angle in degrees (0-360)
+   */
+  setRotation: (angle: number) => void
 }
 
 const UI_OPTIONS = {
@@ -147,10 +175,20 @@ const UI_OPTIONS = {
 
 interface ExcalidrawCanvasProps {
   className?: string
+  showRotationCenter?: boolean
+  rotationCenterX?: number
+  rotationCenterY?: number
+  onRotationCenterChange?: (x: number, y: number) => void
 }
 
 const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>((props, ref) => {
-  const { className } = props
+  const { 
+    className, 
+    showRotationCenter = false, 
+    rotationCenterX = 0, 
+    rotationCenterY = 0,
+    onRotationCenterChange
+  } = props
   const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null)
   const [, forceUpdate] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -572,13 +610,12 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     const offsetX = centerX - (shape.defaultWidth || 100) / 2
     const offsetY = centerY - (shape.defaultHeight || 100) / 2
 
-    const offsetElements = elements.map(el => {
-      // Update element position
+    const offsetElements = elements.map((el, idx) => {
       return {
         ...el,
         x: (el.x || 0) + offsetX,
         y: (el.y || 0) + offsetY,
-        id: `${el.id}-${Date.now()}`, // Generate new ID
+        id: `${el.id}-${Date.now()}-${idx}`,
         seed: Math.floor(Math.random() * 100000),
         version: 1,
         versionNonce: Math.floor(Math.random() * 100000),
@@ -606,6 +643,147 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
 
     setIsDirty(true)
   }, [setIsDirty])
+
+  const splitSelectedGroup = useCallback((): { count: number; message?: string } => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot split.')
+      return { count: 0, message: '画布未就绪' }
+    }
+
+    const currentElements = api.getSceneElements() as ExcalidrawElement[]
+    const selectedIds = selectedElementIds
+
+    const result = splitShapes(currentElements, selectedIds)
+
+    if (result.splitCount > 0) {
+      api.updateScene({ elements: result.elements })
+      setIsDirty(true)
+    }
+
+    return { count: result.splitCount, message: result.message }
+  }, [selectedElementIds, setIsDirty])
+
+  const checkCanSplitSelection = useCallback((): boolean => {
+    const api = excalidrawAPIRef.current
+    if (!api) return false
+
+    const currentElements = api.getSceneElements() as ExcalidrawElement[]
+    return canSplitSelection(currentElements, selectedElementIds)
+  }, [selectedElementIds])
+
+  /**
+   * Rotate selected elements by a specified angle
+   */
+  const rotateElements = useCallback((angleDeg: number, centerX?: number, centerY?: number) => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot rotate.')
+      return
+    }
+
+    const currentElements = api.getSceneElements() as ExcalidrawElement[]
+    const selectedIds = selectedElementIds
+
+    if (selectedIds.length === 0) {
+      console.warn('No elements selected for rotation.')
+      return
+    }
+
+    // Convert degrees to radians
+    const angleRad = (angleDeg * Math.PI) / 180
+
+    const updatedElements = currentElements.map(el => {
+      if (!selectedIds.includes(el.id)) {
+        return el
+      }
+
+      // Calculate element center
+      const elCenterX = el.x + (el.width || 0) / 2
+      const elCenterY = el.y + (el.height || 0) / 2
+
+      // Use custom center or element center
+      const rotCenterX = centerX ?? elCenterX
+      const rotCenterY = centerY ?? elCenterY
+
+      // If rotating around element's own center, just update the angle
+      if (centerX === undefined || centerY === undefined) {
+        return {
+          ...el,
+          angle: ((el.angle || 0) + angleRad) % (2 * Math.PI),
+          version: (el as any).version + 1,
+          versionNonce: Math.floor(Math.random() * 1000000),
+          updated: Date.now(),
+        }
+      }
+
+      // Otherwise, need to rotate position as well
+      const dx = elCenterX - rotCenterX
+      const dy = elCenterY - rotCenterY
+
+      const cos = Math.cos(angleRad)
+      const sin = Math.sin(angleRad)
+
+      const newDx = dx * cos - dy * sin
+      const newDy = dx * sin + dy * cos
+
+      const newX = rotCenterX + newDx - (el.width || 0) / 2
+      const newY = rotCenterY + newDy - (el.height || 0) / 2
+
+      return {
+        ...el,
+        x: newX,
+        y: newY,
+        angle: ((el.angle || 0) + angleRad) % (2 * Math.PI),
+        version: (el as any).version + 1,
+        versionNonce: Math.floor(Math.random() * 1000000),
+        updated: Date.now(),
+      }
+    })
+
+    api.updateScene({ elements: updatedElements })
+    setIsDirty(true)
+  }, [selectedElementIds, setIsDirty])
+
+  /**
+   * Set absolute rotation angle for selected elements
+   */
+  const setRotation = useCallback((angleDeg: number) => {
+    const api = excalidrawAPIRef.current
+    if (!api) {
+      console.warn('Excalidraw API is not ready. Cannot set rotation.')
+      return
+    }
+
+    const currentElements = api.getSceneElements() as ExcalidrawElement[]
+    const selectedIds = selectedElementIds
+
+    if (selectedIds.length === 0) {
+      console.warn('No elements selected.')
+      return
+    }
+
+    // Normalize angle to 0-360 range
+    const normalizedAngle = ((angleDeg % 360) + 360) % 360
+    const angleRad = (normalizedAngle * Math.PI) / 180
+
+    const updatedElements = currentElements.map(el => {
+      if (!selectedIds.includes(el.id)) {
+        return el
+      }
+
+      return {
+        ...el,
+        angle: angleRad,
+        version: (el as any).version + 1,
+        versionNonce: Math.floor(Math.random() * 1000000),
+        updated: Date.now(),
+      }
+    })
+
+    api.updateScene({ elements: updatedElements })
+    setIsDirty(true)
+  }, [selectedElementIds, setIsDirty])
 
   // Expose methods to parent component via ref
   useImperativeHandle(ref, () => ({
@@ -651,7 +829,15 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     redo,
 
     insertMathShape,
-  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize, setBackgroundColor, setTheme, undo, redo, insertMathShape])
+
+    splitSelectedGroup,
+
+    canSplitSelection: checkCanSplitSelection,
+
+    rotateElements,
+
+    setRotation,
+  }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize, setBackgroundColor, setTheme, undo, redo, insertMathShape, splitSelectedGroup, checkCanSplitSelection, rotateElements, setRotation])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
     excalidrawAPIRef.current = api

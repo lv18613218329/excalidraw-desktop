@@ -15,6 +15,11 @@ function App() {
   const [isMaximized, setIsMaximized] = useState(false)
   const [rightPanelExpanded, setRightPanelExpanded] = useState(false)
   const [leftPanelExpanded, setLeftPanelExpanded] = useState(true)
+  const [rotation, setRotation] = useState(0)
+  const [isDraggingSlider, setIsDraggingSlider] = useState(false)
+  const [rotationCenter, setRotationCenter] = useState({ x: 0, y: 0 })
+  const [useCustomCenter, setUseCustomCenter] = useState(false)
+  const [showCenterMarker, setShowCenterMarker] = useState(false)
 
   // Ref for ExcalidrawCanvas to access exposed methods
   // Usage: canvasRef.current?.updateElementProperties({ strokeColor: '#ff0000' })
@@ -73,6 +78,18 @@ function App() {
           case '1': setCurrentSubject('math'); break
           case '2': setCurrentSubject('physics'); break
           case '3': setCurrentSubject('chemistry'); break
+        }
+        // Ctrl+Shift+G 分割图形
+        if (e.shiftKey && e.key.toLowerCase() === 'g') {
+          e.preventDefault()
+          const result = canvasRef.current?.splitSelectedGroup()
+          if (result) {
+            if (result.count > 0) {
+              alert(result.message || `已分割为 ${result.count} 个子图形`)
+            } else if (result.message) {
+              alert(result.message)
+            }
+          }
         }
       }
     }
@@ -151,14 +168,11 @@ function App() {
   const currentSubjectData = subjectTools[currentSubject]
   const primaryColor = subjectColors[currentSubject]
 
-  // Handler for math shape tool click - switches to the appropriate drawing tool
-  // instead of auto-inserting a shape, allowing users to draw manually
   const handleMathShapeClick = (shapeId?: string) => {
     if (!shapeId || currentSubject !== 'math') return
     const shape = getShapeById(shapeId)
-    if (shape?.toolType) {
-      // Switch to the corresponding drawing tool
-      setCurrentTool(shape.toolType)
+    if (shape) {
+      canvasRef.current?.insertMathShape(shape)
     }
   }
 
@@ -210,6 +224,23 @@ function App() {
         <button className="toolbar-btn" onClick={() => canvasRef.current?.undo()}>↩ 撤销</button>
         <button className="toolbar-btn" onClick={() => canvasRef.current?.redo()}>↪ 重做</button>
         <span className="toolbar-separator">|</span>
+        <button
+          className="toolbar-btn"
+          disabled={selectedElementIds.length === 0}
+          onClick={() => {
+            const result = canvasRef.current?.splitSelectedGroup()
+            if (result) {
+              if (result.count > 0) {
+                alert(result.message || `已分割为 ${result.count} 个子图形`)
+              } else if (result.message) {
+                alert(result.message)
+              }
+            }
+          }}
+          title="选中图形+线条，用线条将图形分割为子图形"
+        >
+          ✂️ 分割
+        </button>
         <div className="toolbar-dropdown">
           <button className="toolbar-btn">🔍 {zoom}% ▼</button>
           <div className="dropdown-menu">
@@ -363,6 +394,151 @@ function App() {
               <option value="dashed">虚线</option>
               <option value="dotted">点线</option>
             </select>
+          </div>
+
+          <div className="property-group">
+            <div className="property-label">旋转角度</div>
+            <div className="property-row">
+              <input 
+                type="range" 
+                className="slider" 
+                min="0" 
+                max="360" 
+                value={rotation}
+                onChange={(e) => {
+                  setRotation(Number(e.target.value))
+                  if (useCustomCenter) {
+                    canvasRef.current?.rotateElements(
+                      Number(e.target.value) - rotation,
+                      rotationCenter.x,
+                      rotationCenter.y
+                    )
+                  } else {
+                    canvasRef.current?.setRotation(Number(e.target.value))
+                  }
+                }}
+                onMouseDown={() => setIsDraggingSlider(true)}
+                onMouseUp={() => setIsDraggingSlider(false)}
+                onMouseLeave={() => setIsDraggingSlider(false)}
+                disabled={selectedElementIds.length === 0}
+              />
+              <span className="slider-value">{rotation}°</span>
+            </div>
+            <div className="property-row" style={{ marginTop: '8px' }}>
+              <button 
+                className="quick-rotate-btn"
+                onClick={() => {
+                  if (useCustomCenter) {
+                    canvasRef.current?.rotateElements(-90, rotationCenter.x, rotationCenter.y)
+                    setRotation((r) => (r - 90 + 360) % 360)
+                  } else {
+                    canvasRef.current?.rotateElements(-90)
+                    setRotation((r) => (r - 90 + 360) % 360)
+                  }
+                }}
+                disabled={selectedElementIds.length === 0}
+                title="逆时针旋转 90°"
+              >
+                ↺ -90°
+              </button>
+              <button 
+                className="quick-rotate-btn"
+                onClick={() => {
+                  if (useCustomCenter) {
+                    canvasRef.current?.rotateElements(90, rotationCenter.x, rotationCenter.y)
+                    setRotation((r) => (r + 90) % 360)
+                  } else {
+                    canvasRef.current?.rotateElements(90)
+                    setRotation((r) => (r + 90) % 360)
+                  }
+                }}
+                disabled={selectedElementIds.length === 0}
+                title="顺时针旋转 90°"
+              >
+                ↻ +90°
+              </button>
+              <button 
+                className="quick-rotate-btn"
+                onClick={() => {
+                  setRotation(0)
+                  canvasRef.current?.setRotation(0)
+                }}
+                disabled={selectedElementIds.length === 0}
+                title="重置旋转"
+              >
+                ⊟ 重置
+              </button>
+            </div>
+          </div>
+
+          <div className="property-group">
+            <div className="property-label">旋转中心点</div>
+            <div className="property-row">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+                <input 
+                  type="checkbox" 
+                  checked={useCustomCenter}
+                  onChange={(e) => {
+                    setUseCustomCenter(e.target.checked)
+                    setShowCenterMarker(e.target.checked)
+                  }}
+                  disabled={selectedElementIds.length === 0}
+                />
+                使用自定义中心点
+              </label>
+            </div>
+            {useCustomCenter && (
+              <>
+                <div className="property-row" style={{ marginTop: '8px' }}>
+                  <span className="slider-value" style={{ textAlign: 'left' }}>X:</span>
+                  <input 
+                    type="number"
+                    className="number-input"
+                    value={Math.round(rotationCenter.x)}
+                    onChange={(e) => setRotationCenter({ ...rotationCenter, x: Number(e.target.value) })}
+                    disabled={selectedElementIds.length === 0}
+                  />
+                  <span className="slider-value" style={{ textAlign: 'left', marginLeft: '16px' }}>Y:</span>
+                  <input 
+                    type="number"
+                    className="number-input"
+                    value={Math.round(rotationCenter.y)}
+                    onChange={(e) => setRotationCenter({ ...rotationCenter, y: Number(e.target.value) })}
+                    disabled={selectedElementIds.length === 0}
+                  />
+                </div>
+                <div className="property-row" style={{ marginTop: '8px' }}>
+                  <button 
+                    className="quick-rotate-btn"
+                    onClick={() => {
+                      // 设置中心点到选中图形的中心
+                      const elements = canvasRef.current?.getSceneElements()
+                      if (elements && elements.length > 0) {
+                        const selected = elements.filter(el => selectedElementIds.includes(el.id))
+                        if (selected.length > 0) {
+                          let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+                          selected.forEach(el => {
+                            if ('x' in el && 'y' in el && 'width' in el && 'height' in el) {
+                              minX = Math.min(minX, (el as any).x)
+                              maxX = Math.max(maxX, (el as any).x + (el as any).width)
+                              minY = Math.min(minY, (el as any).y)
+                              maxY = Math.max(maxY, (el as any).y + (el as any).height)
+                            }
+                          })
+                          const centerX = (minX + maxX) / 2
+                          const centerY = (minY + maxY) / 2
+                          setRotationCenter({ x: centerX, y: centerY })
+                        }
+                      }
+                    }}
+                    disabled={selectedElementIds.length === 0}
+                    title="设置为选中图形中心"
+                  >
+                    📍 设为图形中心
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="property-group">
