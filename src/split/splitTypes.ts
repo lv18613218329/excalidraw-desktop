@@ -314,8 +314,8 @@ export function splitShapes(
       }
 
       removedIds.add(shape.id)
-      // 保留分割线，只删除被分割的图形
-      // removedIds.add(line.id)
+      // 分割后删除分割线
+      removedIds.add(line.id)
       splitCount++
       break
     }

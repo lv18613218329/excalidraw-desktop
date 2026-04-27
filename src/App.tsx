@@ -16,7 +16,6 @@ function App() {
   const [rightPanelExpanded, setRightPanelExpanded] = useState(false)
   const [leftPanelExpanded, setLeftPanelExpanded] = useState(true)
   const [rotation, setRotation] = useState(0)
-  const [isDraggingSlider, setIsDraggingSlider] = useState(false)
   const [rotationCenter, setRotationCenter] = useState({ x: 0, y: 0 })
   const [useCustomCenter, setUseCustomCenter] = useState(false)
   const [showCenterMarker, setShowCenterMarker] = useState(false)
@@ -36,6 +35,33 @@ function App() {
   // 获取 Excalidraw API 用于导出功能
   // 文件操作 Hook - 使用 canvasRef 获取 API
   const fileOperations = useFileOperations(canvasRef)
+
+  // 当选择元素变化时，更新旋转中心点到选中图形的中心
+  useEffect(() => {
+    if (selectedElementIds.length > 0 && useCustomCenter) {
+      const elements = canvasRef.current?.getSceneElements()
+      if (elements && elements.length > 0) {
+        const selected = elements.filter((el) => selectedElementIds.includes(el.id))
+        if (selected.length > 0) {
+          let minX = Infinity,
+            maxX = -Infinity,
+            minY = Infinity,
+            maxY = -Infinity
+          selected.forEach((el) => {
+            if ('x' in el && 'y' in el && 'width' in el && 'height' in el) {
+              minX = Math.min(minX, (el as any).x)
+              maxX = Math.max(maxX, (el as any).x + (el as any).width)
+              minY = Math.min(minY, (el as any).y)
+              maxY = Math.max(maxY, (el as any).y + (el as any).height)
+            }
+          })
+          const centerX = (minX + maxX) / 2
+          const centerY = (minY + maxY) / 2
+          setRotationCenter({ x: centerX, y: centerY })
+        }
+      }
+    }
+  }, [selectedElementIds, useCustomCenter])
 
   // 监听学科切换菜单事件
   useEffect(() => {
@@ -334,7 +360,13 @@ function App() {
           </div>
         </div>
 
-        <ExcalidrawCanvas ref={canvasRef} />
+        <ExcalidrawCanvas
+          ref={canvasRef}
+          showRotationCenter={showCenterMarker}
+          rotationCenterX={rotationCenter.x}
+          rotationCenterY={rotationCenter.y}
+          onRotationCenterChange={(x, y) => setRotationCenter({ x, y })}
+        />
 
         {/* 右侧面板折叠按钮 - 1024-1439px 时显示 */}
         <button
@@ -406,20 +438,15 @@ function App() {
                 max="360" 
                 value={rotation}
                 onChange={(e) => {
-                  setRotation(Number(e.target.value))
+                  const newRotation = Number(e.target.value)
+                  setRotation(newRotation)
                   if (useCustomCenter) {
-                    canvasRef.current?.rotateElements(
-                      Number(e.target.value) - rotation,
-                      rotationCenter.x,
-                      rotationCenter.y
-                    )
+                    canvasRef.current?.setRotation(newRotation, rotationCenter.x, rotationCenter.y)
                   } else {
-                    canvasRef.current?.setRotation(Number(e.target.value))
+                    canvasRef.current?.setRotation(newRotation)
                   }
                 }}
-                onMouseDown={() => setIsDraggingSlider(true)}
-                onMouseUp={() => setIsDraggingSlider(false)}
-                onMouseLeave={() => setIsDraggingSlider(false)}
+
                 disabled={selectedElementIds.length === 0}
               />
               <span className="slider-value">{rotation}°</span>

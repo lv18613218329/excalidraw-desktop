@@ -7,7 +7,9 @@ import { useAppStore } from '../stores/appStore'
 import { MathShape, convertMathShapeToElements } from '../libraries'
 import { useConnectionStore, isLineElement, isConnectableElement, getLineEndpoint, findNearestAnchor, shouldDisconnect } from '../connection'
 import { splitShapes, canSplitSelection } from '../split'
+import { useSnapStore, isSnappableElement } from '../snap'
 import AnchorOverlay from '../connection/AnchorOverlay'
+import SnapOverlay from '../snap/SnapOverlay'
 import RotationCenterOverlay from './RotationCenterOverlay'
 import './ExcalidrawCanvas.css'
 
@@ -154,8 +156,10 @@ export interface ExcalidrawCanvasRef {
   /**
    * Set absolute rotation angle for selected elements
    * @param angle - Absolute rotation angle in degrees (0-360)
+   * @param centerX - Optional center X coordinate for rotation (default: element center)
+   * @param centerY - Optional center Y coordinate for rotation (default: element center)
    */
-  setRotation: (angle: number) => void
+  setRotation: (angle: number, centerX?: number, centerY?: number) => void
 }
 
 const UI_OPTIONS = {
@@ -747,8 +751,11 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
 
   /**
    * Set absolute rotation angle for selected elements
+   * @param angleDeg - Absolute rotation angle in degrees (0-360)
+   * @param centerX - Optional center X coordinate for rotation (default: element center)
+   * @param centerY - Optional center Y coordinate for rotation (default: element center)
    */
-  const setRotation = useCallback((angleDeg: number) => {
+  const setRotation = useCallback((angleDeg: number, centerX?: number, centerY?: number) => {
     const api = excalidrawAPIRef.current
     if (!api) {
       console.warn('Excalidraw API is not ready. Cannot set rotation.')
@@ -767,13 +774,71 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     const normalizedAngle = ((angleDeg % 360) + 360) % 360
     const angleRad = (normalizedAngle * Math.PI) / 180
 
+    // Calculate the bounding box center of selected elements for custom rotation
+    let customCenterX = centerX
+    let customCenterY = centerY
+    if (centerX !== undefined && centerY !== undefined) {
+      // Use provided center
+    } else {
+      // Calculate center from selected elements
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
+      selectedIds.forEach(id => {
+        const el = currentElements.find(e => e.id === id)
+        if (el) {
+          minX = Math.min(minX, el.x)
+          maxX = Math.max(maxX, el.x + (el.width || 0))
+          minY = Math.min(minY, el.y)
+          maxY = Math.max(maxY, el.y + (el.height || 0))
+        }
+      })
+      customCenterX = (minX + maxX) / 2
+      customCenterY = (minY + maxY) / 2
+    }
+
     const updatedElements = currentElements.map(el => {
       if (!selectedIds.includes(el.id)) {
         return el
       }
 
+      // Calculate element center
+      const elCenterX = el.x + (el.width || 0) / 2
+      const elCenterY = el.y + (el.height || 0) / 2
+
+      // If no custom center provided and element has no previous rotation, just set angle
+      if (centerX === undefined && centerY === undefined && !(el.angle || 0)) {
+        return {
+          ...el,
+          angle: angleRad,
+          version: (el as any).version + 1,
+          versionNonce: Math.floor(Math.random() * 1000000),
+          updated: Date.now(),
+        }
+      }
+
+      // Calculate current position relative to rotation center
+      const currentAngle = el.angle || 0
+      const currentAngleDeg = (currentAngle * 180) / Math.PI
+      
+      // Calculate the distance from rotation center to element center
+      const dx = elCenterX - (customCenterX ?? elCenterX)
+      const dy = elCenterY - (customCenterY ?? elCenterY)
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      // Calculate the initial angle when element was at 0 rotation
+      const initialAngle = Math.atan2(dy, dx) - currentAngle
+      
+      // Calculate new position based on new rotation angle
+      const newAngleRad = initialAngle + angleRad
+      const newDx = Math.cos(newAngleRad) * distance
+      const newDy = Math.sin(newAngleRad) * distance
+      
+      const newX = (customCenterX ?? elCenterX) + newDx - (el.width || 0) / 2
+      const newY = (customCenterY ?? elCenterY) + newDy - (el.height || 0) / 2
+
       return {
         ...el,
+        x: newX,
+        y: newY,
         angle: angleRad,
         version: (el as any).version + 1,
         versionNonce: Math.floor(Math.random() * 1000000),
@@ -845,8 +910,10 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
   }, [])
 
   const prevElementsRef = useRef<ExcalidrawElement[]>([])
+  const draggingElementRef = useRef<ExcalidrawElement | null>(null)
 
   const connectionStore = useConnectionStore
+  const snapStore = useSnapStore
 
   const handleChange = useCallback(
     (elements: readonly ExcalidrawElement[], appState: AppState, _files: BinaryFiles) => {
@@ -854,9 +921,49 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
       setElements(currentElements)
 
       const connStore = connectionStore.getState()
+      const snapState = snapStore.getState()
       const prevElements = prevElementsRef.current
       const isDragging = (appState as any).draggingElement != null
       const isResizing = (appState as any).resizingElement != null
+
+      // Handle snap system during dragging
+      if (isDragging) {
+        const draggingId = (appState as any).draggingElement?.id
+        if (draggingId) {
+          const draggingEl = currentElements.find((e) => e.id === draggingId)
+          if (draggingEl && isSnappableElement(draggingEl)) {
+            // Start dragging if not already started
+            if (!draggingElementRef.current || draggingElementRef.current.id !== draggingId) {
+              draggingElementRef.current = draggingEl
+              snapState.startDragging(draggingId)
+            }
+
+            // Always check for snap during dragging
+            const snapResult = snapState.handleElementDragging(draggingEl, currentElements)
+            if (snapResult.snapped) {
+              // Apply snap offset to element
+              const api = excalidrawAPIRef.current
+              if (api && (snapResult.deltaX !== 0 || snapResult.deltaY !== 0)) {
+                const updatedEl = {
+                  ...draggingEl,
+                  x: draggingEl.x + snapResult.deltaX,
+                  y: draggingEl.y + snapResult.deltaY,
+                }
+                const updatedElements = currentElements.map((e) =>
+                  e.id === draggingId ? updatedEl : e
+                )
+                api.updateScene({ elements: updatedElements })
+              }
+            }
+          }
+        }
+      } else {
+        // Dragging ended - clear state
+        if (draggingElementRef.current) {
+          snapState.stopDragging()
+          draggingElementRef.current = null
+        }
+      }
 
       if (!isDragging && !isResizing && prevElements.length > 0) {
         const elementMap = new Map<string, ExcalidrawElement>()
@@ -970,7 +1077,7 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
         setGridEnabled(isGridEnabled)
       }
     },
-    [setElements, setSelectedElementIds, setZoom, setGridEnabled, connectionStore]
+    [setElements, setSelectedElementIds, setZoom, setGridEnabled, connectionStore, snapStore]
   )
 
   useEffect(() => {
@@ -1009,11 +1116,36 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     }
   }, [setCurrentFilePath, setIsDirty])
 
+  // Get current app state for rotation center overlay
+  const [currentAppState, setCurrentAppState] = useState<AppState | null>(null)
+
+  // Wrap handleChange to capture app state
+  const handleChangeWithAppState = useCallback(
+    (elements: readonly ExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
+      setCurrentAppState(appState)
+      handleChange(elements, appState, files)
+    },
+    [handleChange]
+  )
+
+  // Get scene elements for rotation center bounds checking
+  const getSceneElementsForRotation = useCallback(() => {
+    const api = excalidrawAPIRef.current
+    if (!api) return []
+    return api.getSceneElements().map((el) => ({
+      id: el.id,
+      x: el.x,
+      y: el.y,
+      width: el.width || 0,
+      height: el.height || 0,
+    }))
+  }, [])
+
   return (
     <div className={`excalidraw-canvas-container ${className || ''}`} ref={containerRef}>
       <Excalidraw
         excalidrawAPI={handleAPIReady}
-        onChange={handleChange}
+        onChange={handleChangeWithAppState}
         langCode="zh-CN"
         UIOptions={UI_OPTIONS}
         gridModeEnabled={true}
@@ -1025,6 +1157,19 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
       <AnchorOverlay
         getExcalidrawAPI={() => excalidrawAPIRef.current}
         containerRef={containerRef}
+      />
+      <SnapOverlay
+        getExcalidrawAPI={() => excalidrawAPIRef.current}
+        containerRef={containerRef}
+      />
+      <RotationCenterOverlay
+        visible={showRotationCenter}
+        centerX={rotationCenterX}
+        centerY={rotationCenterY}
+        onCenterChange={onRotationCenterChange}
+        appState={currentAppState}
+        selectedElementIds={selectedElementIds}
+        getSceneElements={getSceneElementsForRotation}
       />
     </div>
   )
