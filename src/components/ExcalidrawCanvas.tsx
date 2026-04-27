@@ -11,6 +11,7 @@ import { useSnapStore, isSnappableElement } from '../snap'
 import AnchorOverlay from '../connection/AnchorOverlay'
 import SnapOverlay from '../snap/SnapOverlay'
 import RotationCenterOverlay from './RotationCenterOverlay'
+import LaserPointerOverlay from './LaserPointerOverlay'
 import './ExcalidrawCanvas.css'
 
 /**
@@ -160,6 +161,16 @@ export interface ExcalidrawCanvasRef {
    * @param centerY - Optional center Y coordinate for rotation (default: element center)
    */
   setRotation: (angle: number, centerX?: number, centerY?: number) => void
+
+  /**
+   * Set laser pointer tool as active tool
+   */
+  setLaserTool: () => void
+
+  /**
+   * Set selection tool as active tool (to cancel laser pointer)
+   */
+  setSelectionTool: () => void
 }
 
 const UI_OPTIONS = {
@@ -183,15 +194,17 @@ interface ExcalidrawCanvasProps {
   rotationCenterX?: number
   rotationCenterY?: number
   onRotationCenterChange?: (x: number, y: number) => void
+  laserPointerActive?: boolean
 }
 
 const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>((props, ref) => {
-  const { 
-    className, 
-    showRotationCenter = false, 
-    rotationCenterX = 0, 
+  const {
+    className,
+    showRotationCenter = false,
+    rotationCenterX = 0,
     rotationCenterY = 0,
-    onRotationCenterChange
+    onRotationCenterChange,
+    laserPointerActive = false
   } = props
   const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null)
   const [, forceUpdate] = useState(0)
@@ -817,8 +830,7 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
 
       // Calculate current position relative to rotation center
       const currentAngle = el.angle || 0
-      const currentAngleDeg = (currentAngle * 180) / Math.PI
-      
+
       // Calculate the distance from rotation center to element center
       const dx = elCenterX - (customCenterX ?? elCenterX)
       const dy = elCenterY - (customCenterY ?? elCenterY)
@@ -902,6 +914,24 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
     rotateElements,
 
     setRotation,
+
+    setLaserTool: () => {
+      const api = excalidrawAPIRef.current
+      if (!api) {
+        console.warn('Excalidraw API is not ready. Cannot set laser tool.')
+        return
+      }
+      api.setActiveTool({ type: 'laser' })
+    },
+
+    setSelectionTool: () => {
+      const api = excalidrawAPIRef.current
+      if (!api) {
+        console.warn('Excalidraw API is not ready. Cannot set selection tool.')
+        return
+      }
+      api.setActiveTool({ type: 'selection' })
+    },
   }), [updateElementProperties, selectedElementIds, clearCanvas, zoomIn, zoomOut, setZoomValue, fitToScreen, resetZoom, toggleGrid, setGridSize, setBackgroundColor, setTheme, undo, redo, insertMathShape, splitSelectedGroup, checkCanSplitSelection, rotateElements, setRotation])
 
   const handleAPIReady = useCallback((api: ExcalidrawImperativeAPI) => {
@@ -1170,6 +1200,10 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
         appState={currentAppState}
         selectedElementIds={selectedElementIds}
         getSceneElements={getSceneElementsForRotation}
+      />
+      <LaserPointerOverlay
+        isActive={laserPointerActive}
+        containerRef={containerRef}
       />
     </div>
   )

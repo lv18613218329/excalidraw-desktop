@@ -19,6 +19,7 @@ function App() {
   const [rotationCenter, setRotationCenter] = useState({ x: 0, y: 0 })
   const [useCustomCenter, setUseCustomCenter] = useState(false)
   const [showCenterMarker, setShowCenterMarker] = useState(false)
+  const [isLaserPointerActive, setIsLaserPointerActive] = useState(false)
 
   // Ref for ExcalidrawCanvas to access exposed methods
   // Usage: canvasRef.current?.updateElementProperties({ strokeColor: '#ff0000' })
@@ -93,7 +94,15 @@ function App() {
           case 'p': setCurrentTool('pencil'); break
           case 'r': setCurrentTool('rectangle'); break
           case 'o': setCurrentTool('ellipse'); break
-          case 'l': setCurrentTool('line'); break
+          case 'l': 
+            if (isLaserPointerActive) {
+              canvasRef.current?.setSelectionTool()
+              setIsLaserPointerActive(false)
+            } else {
+              canvasRef.current?.setLaserTool()
+              setIsLaserPointerActive(true)
+            }
+            break
           case 'a': setCurrentTool('arrow'); break
           case 't': setCurrentTool('text'); break
         }
@@ -289,6 +298,22 @@ function App() {
         }}>
           {theme === 'light' ? '☀️' : '🌙'} {theme === 'light' ? '亮色' : '暗色'}
         </button>
+        <span className="toolbar-separator">|</span>
+        <button
+          className={`toolbar-btn ${isLaserPointerActive ? 'active' : ''}`}
+          onClick={() => {
+            if (isLaserPointerActive) {
+              canvasRef.current?.setSelectionTool()
+              setIsLaserPointerActive(false)
+            } else {
+              canvasRef.current?.setLaserTool()
+              setIsLaserPointerActive(true)
+            }
+          }}
+          title="激光笔 (L)"
+        >
+          🔴 激光笔
+        </button>
       </div>
 
       <div className="main-content">
@@ -366,6 +391,7 @@ function App() {
           rotationCenterX={rotationCenter.x}
           rotationCenterY={rotationCenter.y}
           onRotationCenterChange={(x, y) => setRotationCenter({ x, y })}
+          laserPointerActive={isLaserPointerActive}
         />
 
         {/* 右侧面板折叠按钮 - 1024-1439px 时显示 */}
