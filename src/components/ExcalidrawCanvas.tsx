@@ -711,7 +711,7 @@ const ExcalidrawCanvas = forwardRef<ExcalidrawCanvasRef, ExcalidrawCanvasProps>(
       const rotCenterY = centerY ?? elCenterY
 
       // If rotating around element's own center, just update the angle
-      if (centerX === undefined || centerY === undefined) {
+      if (centerX === undefined && centerY === undefined) {
         return {
           ...el,
           angle: ((el.angle || 0) + angleRad) % (2 * Math.PI),
